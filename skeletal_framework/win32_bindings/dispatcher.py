@@ -2,7 +2,7 @@ import ctypes
 
 import win32con
 
-from win32_bindings.user32 import (
+from skeletal_framework.win32_bindings.user32 import (
     # Structures
     CREATESTRUCT, WNDPROC,
 

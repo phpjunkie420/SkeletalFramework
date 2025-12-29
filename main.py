@@ -1,6 +1,6 @@
-from skeletal_framework.exception_handler import ExceptionHandlerDialog
+from skeletal_framework.abstract_window import AbstractDialogWindow
 
 
 if __name__ == '__main__':
-    dialog = ExceptionHandlerDialog()
+    dialog = AbstractDialogWindow()
     dialog.show_window()

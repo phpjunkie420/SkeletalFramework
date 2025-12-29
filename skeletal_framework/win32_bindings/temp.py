@@ -1,7 +1,7 @@
 import ctypes
 from ctypes import Array, wintypes
 
-from win32_bindings.errcheck import errcheck_bool, errcheck_zero, call_with_last_error_check
+from skeletal_framework.win32_bindings.errcheck import errcheck_bool, errcheck_zero, call_with_last_error_check
 
 # region Win32 Bindings
 kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)

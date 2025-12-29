@@ -3,12 +3,12 @@ from ctypes import wintypes
 
 import win32con
 
-from win32_bindings.dispatcher import Dispatcher
-from win32_bindings.dwmapi import DwmSetWindowAttribute, DWMWINDOWATTRIBUTE
-from win32_bindings.gdi32 import *
-from win32_bindings.kernel32 import GetModuleHandle
-from win32_bindings.monitor_info import GetMonitorInfo, MonitorFromPoint
-from win32_bindings.user32 import *
+from skeletal_framework.win32_bindings.dispatcher import Dispatcher
+from skeletal_framework.win32_bindings.dwmapi import DwmSetWindowAttribute, DWMWINDOWATTRIBUTE
+from skeletal_framework.win32_bindings.gdi32 import *
+from skeletal_framework.win32_bindings.kernel32 import GetModuleHandle
+from skeletal_framework.win32_bindings.monitor_info import GetMonitorInfo, MonitorFromPoint
+from skeletal_framework.win32_bindings.user32 import *
 
 
 class ExceptionHandlerDialog:
@@ -70,7 +70,7 @@ class ExceptionHandlerDialog:
         )
 
     def create_controls(self):
-        hwnd_edit = CreateWindowEx(
+        hwnd_edit = CreateWindowEx(  # noqa
             dwExStyle = 0,
             lpClassName = 'EDIT',
             lpWindowName = 'This is a read-only info box.\r\nIt has custom colors.',

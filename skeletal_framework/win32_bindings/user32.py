@@ -3,7 +3,7 @@ from ctypes import wintypes
 from collections.abc import Callable
 from typing import Any
 
-from win32_bindings.errcheck import errcheck_bool, errcheck_zero, call_with_last_error_check
+from skeletal_framework.win32_bindings.errcheck import errcheck_bool, errcheck_zero, call_with_last_error_check
 
 __all__ = [
     'CREATESTRUCT',

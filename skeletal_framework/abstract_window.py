@@ -1,62 +1,55 @@
 import ctypes
-from abc import ABC, abstractmethod
 from ctypes import wintypes
 
 import win32con
 
-from win32_bindings.dispatcher import *
-from win32_bindings.dwmapi import *
-from win32_bindings.gdi32 import CreateSolidBrush
-from win32_bindings.kernel32 import *
-from win32_bindings.monitor_info import *
-from win32_bindings.user32 import *
+from skeletal_framework.win32_bindings.dispatcher import *
+from skeletal_framework.win32_bindings.dwmapi import *
+from skeletal_framework.win32_bindings.gdi32 import *
+from skeletal_framework.win32_bindings.kernel32 import *
+from skeletal_framework.win32_bindings.monitor_info import *
+from skeletal_framework.win32_bindings.user32 import *
 
 
-class AbstractDialogWindow(ABC):
+class AbstractDialogWindow:
     _CLASS_NAME = 'AbstractDialogWindowClass'
     _WINDOW_NAME = 'Abstract Dialog'
 
-    def __init__(self, window_name: str, width: int, height: int, dark_mode: bool = False):
+    def __init__(self):
         self._hwnd: int | None = None
-        self._window_name = window_name
-        self._dark_mode = dark_mode
 
-        self._hbr_background = 0
-        if self._dark_mode:
-            self._hbr_background = CreateSolidBrush(
-                color = wintypes.RGB(
-                    red = 50, green = 50, blue = 50
-                )
+        self._hbr_background = CreateSolidBrush(
+            color = wintypes.RGB(
+                red = 50, green = 50, blue = 50
             )
+        )
 
-        self._width = width
-        self._height = height
+        self._width = 800
+        self._height = 600
 
         self._h_instance = GetModuleHandle(None)
 
         self._atom = self._register_class()
         self._create_window()
 
-    @abstractmethod
     def wnd_proc(self, hwnd, msg, wparam, lparam):
-        # if msg == win32con.WM_NCCREATE:
-        #     self._hwnd = hwnd
-        #
-        # elif msg == win32con.WM_CREATE:
-        #     self.invalidate_geometry()
-        #     self.create_controls()
-        #     return 0
-        #
-        # elif msg == win32con.WM_CLOSE:
-        #     pass
-        #
-        # elif msg == win32con.WM_DESTROY:
-        #     self.destroy()
-        #     PostQuitMessage(0)
-        #     return 0
-        #
-        # return DefWindowProc(hwnd, msg, wparam, lparam)
-        ...
+        if msg == win32con.WM_NCCREATE:
+            self._hwnd = hwnd
+
+        elif msg == win32con.WM_CREATE:
+            self.invalidate_geometry()
+            self.create_controls()
+            return 0
+
+        elif msg == win32con.WM_CLOSE:
+            pass
+
+        elif msg == win32con.WM_DESTROY:
+            self.destroy()
+            PostQuitMessage(0)
+            return 0
+
+        return DefWindowProc(hwnd, msg, wparam, lparam)
 
     def _use_immersive_dark_mode(self):
         DwmSetWindowAttribute(
@@ -65,14 +58,14 @@ class AbstractDialogWindow(ABC):
             pvAttribute = True
         )
 
-    @abstractmethod
-    def create_controls(self): ...
+    def create_controls(self):
+        pass
 
     def _create_window(self):
         return CreateWindowEx(
             dwExStyle = win32con.WS_EX_TOPMOST,
-            lpClassName = self._class_name,
-            lpWindowName = self._window_name,
+            lpClassName = self._CLASS_NAME,
+            lpWindowName = self._WINDOW_NAME,
             dwStyle = win32con.WS_SYSMENU,
             x = win32con.CW_USEDEFAULT, y = win32con.CW_USEDEFAULT,
             nWidth = self._width, nHeight = self._height,
@@ -89,7 +82,7 @@ class AbstractDialogWindow(ABC):
                 hIcon = None,
                 hbrBackground = self._hbr_background,
                 hCursor = LoadCursor(0, win32con.IDC_ARROW),
-                lpszClassName = self._class_name
+                lpszClassName = self._CLASS_NAME
             )
         )
 
@@ -114,16 +107,20 @@ class AbstractDialogWindow(ABC):
             )
 
     def destroy(self):
+        try:
+            DeleteObject(self._hbr_background)
+        except OSError:
+            pass
+
         if self._hwnd is not None and self._hwnd:
             DestroyWindow(self._hwnd)
             try:
-                UnregisterClass(self._class_name, self._h_instance)
+                UnregisterClass(self._CLASS_NAME, self._h_instance)
             except:  # noqa
                 pass
 
     def show_window(self):
-        if self._dark_mode:
-            self._use_immersive_dark_mode()
+        self._use_immersive_dark_mode()
 
         ShowWindow(self._hwnd, win32con.SW_SHOW)
         UpdateWindow(self._hwnd)

@@ -1,7 +1,7 @@
 import ctypes
 from ctypes import wintypes
 
-from win32_bindings.errcheck import call_with_last_error_check
+from skeletal_framework.win32_bindings.errcheck import call_with_last_error_check
 
 __all__ = [
     'GetModuleHandle'
