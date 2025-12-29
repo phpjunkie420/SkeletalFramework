@@ -1,0 +1,4 @@
+# Ignores all of the debugging, scratches, and temp folders, or any file that starts with a -
+**/scratches
+**/debug/
+**/crash_reports/*

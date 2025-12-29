@@ -1,0 +1,167 @@
+import ctypes
+from ctypes import Array, wintypes
+
+from win32_bindings.errcheck import errcheck_bool, errcheck_zero, call_with_last_error_check
+
+# region Win32 Bindings
+kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+user32 = ctypes.WinDLL('user32', use_last_error=True)
+
+
+# HWND WINAPI GetConsoleWindow(void);
+_GetConsoleWindow = kernel32.GetConsoleWindow
+_GetConsoleWindow.argtypes = []
+_GetConsoleWindow.restype = wintypes.HWND
+
+# DWORD GetWindowThreadProcessId(
+#   [in]            HWND    hWnd,
+#   [out, optional] LPDWORD lpdwProcessId
+# );
+_GetWindowThreadProcessId = user32.GetWindowThreadProcessId
+_GetWindowThreadProcessId.argtypes = [wintypes.HWND, wintypes.LPDWORD]
+_GetWindowThreadProcessId.restype = wintypes.DWORD
+_GetWindowThreadProcessId.errcheck = errcheck_zero
+
+# int GetWindowTextW(
+#   [in]  HWND   hWnd,
+#   [out] LPWSTR lpString,
+#   [in]  int    nMaxCount
+# );
+_GetWindowText = user32.GetWindowTextW
+_GetWindowText.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+_GetWindowText.restype = ctypes.c_int
+
+# int GetWindowTextLengthW(
+#   [in] HWND hWnd
+# )_
+_GetWindowTextLength = user32.GetWindowTextLengthW
+_GetWindowTextLength.argtypes = [wintypes.HWND]
+_GetWindowTextLength.restype = wintypes.INT
+
+# BOOL GetWindowRect(
+#   [in]  HWND   hWnd,
+#   [out] LPRECT lpRect
+# );
+_GetWindowRect = user32.GetWindowRect
+_GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+_GetWindowRect.restype = wintypes.BOOL
+_GetWindowRect.errcheck = errcheck_bool
+
+# BOOL SetWindowPos(
+#   [in]           HWND hWnd,
+#   [in, optional] HWND hWndInsertAfter,
+#   [in]           int  X,
+#   [in]           int  Y,
+#   [in]           int  cx,
+#   [in]           int  cy,
+#   [in]           UINT uFlags
+# );
+_SetWindowPos = user32.SetWindowPos
+_SetWindowPos.argtypes = [
+    wintypes.HWND,
+    wintypes.HWND,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    wintypes.UINT
+]
+_SetWindowPos.restype = wintypes.BOOL
+_SetWindowPos.errcheck = errcheck_bool
+# endregion
+
+
+def GetConsoleWindow() -> int:
+    """
+    Retrieves the window handle used by the console associated with the calling process.
+
+    Returns:
+        int: The return value is a handle to the window used by the console associated with the calling process
+             or NULL if there is no such associated console.
+    """
+    return _GetConsoleWindow()
+
+
+def GetWindowThreadProcessId(hWnd: int) -> tuple[int, int]:
+    """
+    Retrieves the identifier of the thread that created the specified window and, optionally, the identifier of the
+    process that created the window.
+
+    Args:
+        hWnd (int): A handle to the window.
+
+    Returns:
+        tuple[int, int]: A tuple containing (thread_id, process_id).
+    """
+    pid = wintypes.DWORD()
+    tid = _GetWindowThreadProcessId(hWnd, ctypes.byref(pid))
+
+    return tid, pid.value
+
+
+def GetWindowTextLength(hWnd: int) -> tuple[Array, int]:
+    """
+    Retrieves the length, in characters, of the specified window's title bar text (if the window has a title bar).
+
+    Args:
+        hWnd (int): A handle to the window or control.
+
+    Returns:
+        tuple[ctypes.Array, int]: A tuple containing the text buffer (ctypes array) and the text length.
+    """
+    text_len = call_with_last_error_check(_GetWindowTextLength, hWnd) + 1
+    text_buffer: Array = ctypes.create_unicode_buffer(text_len)
+
+    return text_buffer, text_len
+
+
+def GetWindowText(hWnd: int) -> str:
+    """
+    Copies the text of the specified window's title bar (if it has one) into a buffer.
+
+    Args:
+        hWnd (int): A handle to the window or control.
+
+    Returns:
+        str: The text of the window's title bar.
+    """
+    text_buffer, text_len = GetWindowTextLength(hWnd)
+
+    call_with_last_error_check(_GetWindowText, hWnd, text_buffer, text_len)
+    return text_buffer.value
+
+
+def GetWindowRect(hWnd: int) -> tuple[int, int, int, int]:
+    """
+    Retrieves the dimensions of the bounding rectangle of the specified window.
+    The dimensions are given in screen coordinates that are relative to the upper-left corner of the screen.
+
+    Args:
+        hWnd (int): A handle to the window.
+
+    Returns:
+        tuple[int, int, int, int]: A tuple containing (left, top, right, bottom) coordinates.
+    """
+    rect = wintypes.RECT()
+    _GetWindowRect(hWnd, ctypes.byref(rect))
+    return rect.left, rect.top, rect.right, rect.bottom
+
+
+def SetWindowPos(hWnd: int, hWndInsertAfter: int, X: int, Y: int, cx: int, cy: int, uFlags: int) -> bool:
+    """
+    Changes the size, position, and Z order of a child, pop-up, or top-level window.
+
+    Args:
+        hWnd (int): A handle to the window.
+        hWndInsertAfter (int): A handle to the window to precede the positioned window in the Z order.
+        X (int): The new position of the left side of the window, in client coordinates.
+        Y (int): The new position of the top of the window, in client coordinates.
+        cx (int): The new width of the window, in pixels.
+        cy (int): The new height of the window, in pixels.
+        uFlags (int): The window sizing and positioning flags.
+
+    Returns:
+        bool: True if the function succeeds.
+    """
+    _SetWindowPos(hWnd, hWndInsertAfter, X, Y, cx, cy, uFlags)
+    return True
