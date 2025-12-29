@@ -410,29 +410,50 @@ class WNDCLASSEX(ctypes.Structure):
         self.lpszClassName = lpszClassName
 
 
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-appendmenuw
 # BOOL AppendMenuW(
 #   [in]           HMENU    hMenu,
 #   [in]           UINT     uFlags,
 #   [in]           UINT_PTR uIDNewItem,
 #   [in, optional] LPCWSTR  lpNewItem
 # );
-_AppendMenu = user32.AppendMenuW
-_AppendMenu.argtypes = [wintypes.HMENU, wintypes.UINT, ctypes.c_void_p, ctypes.c_void_p]
-_AppendMenu.restype = wintypes.BOOL
+AppendMenuW = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HMENU,
+    wintypes.UINT,
+    ctypes.c_void_p,
+    ctypes.c_void_p
+)(
+    ('AppendMenuW', user32),
+    (
+        (IN, "hMenu"),
+        (IN, "uFlags"),
+        (IN, "uIDNewItem"),
+        (IN, "lpNewItem"),
+    )
+)
 
 
 def AppendMenu(hMenu: int, uFlags: int, uIDNewItem: int, lpNewItem: str | None) -> bool:
-    return _AppendMenu(hMenu, uFlags, uIDNewItem, lpNewItem) > 0
+    return AppendMenuW(hMenu, uFlags, uIDNewItem, lpNewItem) > 0
 
 
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-beginpaint
 # HDC BeginPaint(
 #   [in]  HWND          hWnd,
 #   [out] LPPAINTSTRUCT lpPaint
 # );
-_BeginPaint = user32.BeginPaint
-# noinspection PyDeprecation
-_BeginPaint.argtypes = [wintypes.HWND, ctypes.POINTER(PAINTSTRUCT)]
-_BeginPaint.restype = wintypes.HDC
+_BeginPaint = ctypes.WINFUNCTYPE(
+    wintypes.HDC,
+    wintypes.HWND,
+    ctypes.POINTER(PAINTSTRUCT)
+)(
+    ('BeginPaint', user32),
+    (
+        (IN, "hWnd"),
+        (OUT, "lpPaint"),
+    )
+)
 
 
 def BeginPaint(hwnd: int) -> tuple[PAINTSTRUCT, int]:
@@ -442,6 +463,7 @@ def BeginPaint(hwnd: int) -> tuple[PAINTSTRUCT, int]:
     return ps, hdc
 
 
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-callwindowprocw
 # LRESULT CallWindowProcW(
 #   [in] WNDPROC lpPrevWndFunc,
 #   [in] HWND    hWnd,
@@ -449,18 +471,42 @@ def BeginPaint(hwnd: int) -> tuple[PAINTSTRUCT, int]:
 #   [in] WPARAM  wParam,
 #   [in] LPARAM  lParam
 # );
-_CallWindowProc = user32.CallWindowProcW
-_CallWindowProc.argtypes = [LONG_PTR, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
-_CallWindowProc.restype = LRESULT
+CallWindowProcW = ctypes.WINFUNCTYPE(
+    LRESULT,
+    LONG_PTR,
+    wintypes.HWND,
+    wintypes.UINT,
+    wintypes.WPARAM,
+    wintypes.LPARAM
+)(
+    ('CallWindowProcW', user32),
+    (
+        (IN, "lpPrevWndFunc"),
+        (IN, "hWnd"),
+        (IN, "Msg"),
+        (IN, "wParam"),
+        (IN, "lParam"),
+    )
+)
 
 
 def CallWindowProc(lpPrevWndFunc: int, hWnd: int, Msg: int, wParam: int, lParam: int) -> int:
-    return _CallWindowProc(lpPrevWndFunc, hWnd, Msg, wParam, lParam)
+    return CallWindowProcW(lpPrevWndFunc, hWnd, Msg, wParam, lParam)
 
 
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createmenu
 # HMENU CreateMenu();
-CreateMenu = user32.CreateMenu
-CreateMenu.restype = wintypes.HMENU
+_CreateMenu = ctypes.WINFUNCTYPE(
+    wintypes.HMENU
+)(
+    ('CreateMenu', user32),
+    ()
+)
+
+
+def CreateMenu() -> int:
+    return call_with_last_error_check(_CreateMenu)
+
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createwindowexw
 # HWND CreateWindowExW(
@@ -477,7 +523,7 @@ CreateMenu.restype = wintypes.HMENU
 #   [in, optional] HINSTANCE hInstance,
 #   [in, optional] LPVOID    lpParam
 # );
-_CreateWindowEx = ctypes.WINFUNCTYPE(
+CreateWindowExW = ctypes.WINFUNCTYPE(
     wintypes.HWND,
     wintypes.DWORD,
     wintypes.LPCWSTR,
@@ -523,7 +569,7 @@ def CreateWindowEx(
         lpParam: int | None = None
 ) -> int:
     return call_with_last_error_check(
-        _CreateWindowEx,
+        CreateWindowExW,
         dwExStyle,
         lpClassName,
         lpWindowName,
@@ -546,21 +592,40 @@ def CreateWindowEx(
 #   [in] WPARAM wParam,
 #   [in] LPARAM lParam
 # );
-_DefWindowProcW = user32.DefWindowProcW
-_DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
-_DefWindowProcW.restype = wintypes.LPARAM
+DefWindowProcW = ctypes.WINFUNCTYPE(
+    wintypes.LPARAM,
+    wintypes.HWND,
+    wintypes.UINT,
+    wintypes.WPARAM,
+    wintypes.LPARAM
+)(
+    ('DefWindowProcW', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "Msg"),
+        (IN, "wParam"),
+        (IN, "lParam"),
+    )
+)
 
 
 def DefWindowProc(hWnd: int, Msg: int, wParam: int, lParam: int) -> int:
-    return _DefWindowProcW(hWnd, Msg, wParam, lParam)
+    return DefWindowProcW(hWnd, Msg, wParam, lParam)
 
 
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-destroyicon
 # BOOL DestroyIcon(
 #   [in] HICON hIcon
 # );
-_DestroyIcon = user32.DestroyIcon
-_DestroyIcon.argtypes = [wintypes.HICON]
-_DestroyIcon.restype = wintypes.BOOL
+_DestroyIcon = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HICON
+)(
+    ('DestroyIcon', user32),
+    (
+        (IN, "hIcon"),
+    )
+)
 
 
 def DestroyIcon(hIcon: int) -> bool:
@@ -571,9 +636,15 @@ def DestroyIcon(hIcon: int) -> bool:
 # BOOL DestroyWindow(
 #   [in] HWND hWnd
 # );
-_DestroyWindow = user32.DestroyWindow
-_DestroyWindow.argtypes = [wintypes.HWND]
-_DestroyWindow.restype = wintypes.BOOL
+_DestroyWindow = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND
+)(
+    ('DestroyWindow', user32),
+    (
+        (IN, "hWnd"),
+    )
+)
 _DestroyWindow.errcheck = errcheck_bool
 
 
@@ -585,82 +656,234 @@ def DestroyWindow(hWnd: int) -> bool:
 # LRESULT DispatchMessageW(
 #   [in] const MSG *lpMsg
 # );
-_DispatchMessage = user32.DispatchMessageW
-_DispatchMessage.argtypes = [wintypes.LPMSG]
-_DispatchMessage.restype = ctypes.c_ssize_t
+DispatchMessageW = ctypes.WINFUNCTYPE(
+    ctypes.c_ssize_t,
+    wintypes.LPMSG
+)(
+    ('DispatchMessageW', user32),
+    (
+        (IN, "lpMsg"),
+    )
+)
 
 
 def DispatchMessage(lpMsg: Any) -> int:
-    return _DispatchMessage(lpMsg)
+    return DispatchMessageW(lpMsg)
 
 
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-drawfocusrect
 # BOOL DrawFocusRect(
 #   [in] HDC        hDC,
 #   [in] const RECT *lprc  # noqa
 # );
-DrawFocusRect = user32.DrawFocusRect
-DrawFocusRect.argtypes = [wintypes.HDC, wintypes.LPRECT]
-DrawFocusRect.restype = wintypes.BOOL
+_DrawFocusRect = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HDC,
+    wintypes.LPRECT
+)(
+    ('DrawFocusRect', user32),
+    (
+        (IN, "hDC"),
+        (IN, "lprc"),
+    )
+)
+_DrawFocusRect.errcheck = errcheck_bool
 
+
+def DrawFocusRect(hDC: int, lprc: wintypes.RECT) -> bool:
+    return _DrawFocusRect(hDC, ctypes.byref(lprc))
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-drawframecontrol
 # BOOL DrawFrameControl(
 #   [in] HDC    hdc,
 #   [in] LPRECT lprc,  # noqa
 #   [in] UINT   uType,
 #   [in] UINT   uState
 # );
-DrawFrameControl = user32.DrawFrameControl
-DrawFrameControl.argtypes = [wintypes.HDC, wintypes.LPRECT, wintypes.UINT, wintypes.UINT]
-DrawFrameControl.restype = wintypes.BOOL
+_DrawFrameControl = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HDC,
+    wintypes.LPRECT,
+    wintypes.UINT,
+    wintypes.UINT
+)(
+    ('DrawFrameControl', user32),
+    (
+        (IN, "hdc"),
+        (IN, "lprc"),
+        (IN, "uType"),
+        (IN, "uState"),
+    )
+)
+_DrawFrameControl.errcheck = errcheck_bool
 
-DrawText = user32.DrawTextW
-DrawText.argtypes = [
+
+def DrawFrameControl(hdc: int, lprc: wintypes.RECT, uType: int, uState: int) -> bool:
+    return _DrawFrameControl(hdc, ctypes.byref(lprc), uType, uState)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-drawtextw
+# int DrawTextW(
+#   [in]      HDC     hdc,
+#   [in, out] LPCWSTR lpchText,
+#   [in]      int     cchText,
+#   [in, out] LPRECT  lprc,
+#   [in]      UINT    format
+# );
+DrawTextW = ctypes.WINFUNCTYPE(
+    ctypes.c_int,
     wintypes.HDC,
     wintypes.LPCWSTR,
     ctypes.c_int,
     wintypes.LPRECT,
     wintypes.UINT
-]
-# noinspection DuplicatedCode
-DrawText.restype = ctypes.c_int
+)(
+    ('DrawTextW', user32),
+    (
+        (IN, "hdc"),
+        (IN, "lpchText"),
+        (IN, "cchText"),
+        (IN, "lprc"),
+        (IN, "format"),
+    )
+)
 
+
+def DrawText(hdc: int, lpString: str, nCount: int, lpRect: wintypes.RECT, uFormat: int) -> int:
+    ret = DrawTextW(hdc, lpString, nCount, ctypes.byref(lpRect), uFormat)
+    if ret == 0:
+        raise ctypes.WinError(ctypes.get_last_error())
+    return ret
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enablemenuitem
 # BOOL EnableMenuItem(
 #   [in] HMENU hMenu,
 #   [in] UINT  uIDEnableItem,
 #   [in] UINT  uEnable
 # );
-EnableMenuItem = user32.EnableMenuItem
-EnableMenuItem.argtypes = [wintypes.HMENU, wintypes.UINT, wintypes.UINT]
-EnableMenuItem.restype = wintypes.BOOL
+_EnableMenuItem = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HMENU,
+    wintypes.UINT,
+    wintypes.UINT
+)(
+    ('EnableMenuItem', user32),
+    (
+        (IN, "hMenu"),
+        (IN, "uIDEnableItem"),
+        (IN, "uEnable"),
+    )
+)
 
 
+def EnableMenuItem(hMenu: int, uIDEnableItem: int, uEnable: int) -> bool:
+    # Returns previous state or -1 on failure
+    ret = _EnableMenuItem(hMenu, uIDEnableItem, uEnable)
+    if ret == -1:
+        raise ctypes.WinError(ctypes.get_last_error())
+    return True
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enablewindow
 # BOOL EnableWindow(
 #   [in] HWND hWnd,
 #   [in] BOOL bEnable
 # );
-EnableWindow = user32.EnableWindow
-EnableWindow.argtypes = [wintypes.HWND, wintypes.BOOL]
-EnableWindow.restype = wintypes.BOOL
+_EnableWindow = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND,
+    wintypes.BOOL
+)(
+    ('EnableWindow', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "bEnable"),
+    )
+)
 
+
+def EnableWindow(hWnd: int, bEnable: bool) -> bool:
+    return _EnableWindow(hWnd, bEnable)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-endpaint
 # BOOL EndPaint(
 #   [in] HWND              hWnd,
 #   [in] const PAINTSTRUCT *lpPaint
 # );
-_EndPaint = user32.EndPaint
-_EndPaint.argtypes = [wintypes.HWND, ctypes.POINTER(PAINTSTRUCT)]
-_EndPaint.restype = wintypes.BOOL
+_EndPaint = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND,
+    ctypes.POINTER(PAINTSTRUCT)
+)(
+    ('EndPaint', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "lpPaint"),
+    )
+)
 
 
 def EndPaint(hwnd: int, ps: PAINTSTRUCT):
     _EndPaint(hwnd, ctypes.byref(ps))
 
 
-FillRect = user32.FillRect
-FillRect.argtypes = [wintypes.HDC, wintypes.LPRECT, wintypes.HBRUSH]
-FillRect.restype = wintypes.INT
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-fillrect
+# int FillRect(
+#   [in] HDC        hDC,
+#   [in] const RECT *lprc,
+#   [in] HBRUSH     hbr
+# );
+_FillRect = ctypes.WINFUNCTYPE(
+    wintypes.INT,
+    wintypes.HDC,
+    wintypes.LPRECT,
+    wintypes.HBRUSH
+)(
+    ('FillRect', user32),
+    (
+        (IN, "hDC"),
+        (IN, "lprc"),
+        (IN, "hbr"),
+    )
+)
 
-FrameRect = user32.FrameRect
-FrameRect.argtypes = [wintypes.HDC, wintypes.LPRECT, wintypes.HBRUSH]
-FrameRect.restype = wintypes.INT
+
+def FillRect(hDC: int, lprc: wintypes.RECT, hbr: int) -> int:
+    ret = _FillRect(hDC, ctypes.byref(lprc), hbr)
+    if ret == 0:
+        raise ctypes.WinError(ctypes.get_last_error())
+    return ret
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-framerect
+# int FrameRect(
+#   [in] HDC        hDC,
+#   [in] const RECT *lprc,
+#   [in] HBRUSH     hbr
+# );
+_FrameRect = ctypes.WINFUNCTYPE(
+    wintypes.INT,
+    wintypes.HDC,
+    wintypes.LPRECT,
+    wintypes.HBRUSH
+)(
+    ('FrameRect', user32),
+    (
+        (IN, "hDC"),
+        (IN, "lprc"),
+        (IN, "hbr"),
+    )
+)
+
+
+def FrameRect(hDC: int, lprc: wintypes.RECT, hbr: int) -> int:
+    ret = _FrameRect(hDC, ctypes.byref(lprc), hbr)
+    if ret == 0:
+        raise ctypes.WinError(ctypes.get_last_error())
+    return ret
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getclientrect
@@ -668,9 +891,17 @@ FrameRect.restype = wintypes.INT
 #   [in]  HWND   hWnd,
 #   [out] LPRECT lpRect
 # );
-_GetClientRect = user32.GetClientRect
-_GetClientRect.argtypes = [wintypes.HWND, wintypes.LPRECT]
-_GetClientRect.restype = wintypes.BOOL
+_GetClientRect = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND,
+    wintypes.LPRECT
+)(
+    ('GetClientRect', user32),
+    (
+        (IN, "hWnd"),
+        (INOUT, "lpRect"),
+    )
+)
 _GetClientRect.errcheck = errcheck_bool
 
 
@@ -689,20 +920,45 @@ def GetClientRect(hWnd: int) -> tuple[int, int, int, int, int, int] | None:
     return None
 
 
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getcursorpos
 # BOOL GetCursorPos(
 #   [out] LPPOINT lpPoint
 # );
-GetCursorPos = user32.GetCursorPos
-GetCursorPos.argtypes = [wintypes.LPPOINT]
-# noinspection DuplicatedCode
-GetCursorPos.restype = wintypes.BOOL
+_GetCursorPos = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.LPPOINT
+)(
+    ('GetCursorPos', user32),
+    (
+        (INOUT, "lpPoint"),
+    )
+)
+_GetCursorPos.errcheck = errcheck_bool
 
+
+def GetCursorPos() -> tuple[int, int]:
+    pt = wintypes.POINT()
+    _GetCursorPos(ctypes.byref(pt))
+    return pt.x, pt.y
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdc
 # HDC GetDC(
 #   [in] HWND hWnd
 # );
-GetDC = user32.GetDC
-GetDC.argtypes = [wintypes.HWND]
-GetDC.restype = wintypes.HDC
+_GetDC = ctypes.WINFUNCTYPE(
+    wintypes.HDC,
+    wintypes.HWND
+)(
+    ('GetDC', user32),
+    (
+        (IN, "hWnd"),
+    )
+)
+
+
+def GetDC(hWnd: int) -> int:
+    return call_with_last_error_check(_GetDC, hWnd)
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmessagew
@@ -712,9 +968,21 @@ GetDC.restype = wintypes.HDC
 #   [in]           UINT  wMsgFilterMin,
 #   [in]           UINT  wMsgFilterMax
 # );
-_GetMessage = user32.GetMessageW
-_GetMessage.argtypes = [wintypes.LPMSG, wintypes.HWND, wintypes.UINT, wintypes.UINT]
-_GetMessage.restype = wintypes.BOOL
+GetMessageW = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.LPMSG,
+    wintypes.HWND,
+    wintypes.UINT,
+    wintypes.UINT
+)(
+    ('GetMessageW', user32),
+    (
+        (IN, "lpMsg"),
+        (IN, "hWnd"),
+        (IN, "wMsgFilterMin"),
+        (IN, "wMsgFilterMax"),
+    )
+)
 
 
 def GetMessage(lpMsg: Any, hWnd: int | None, wMsgFilterMin: int, wMsgFilterMax: int) -> int:
@@ -723,39 +991,88 @@ def GetMessage(lpMsg: Any, hWnd: int | None, wMsgFilterMin: int, wMsgFilterMax: 
     # However, GetMessage returning 0 is NOT an error (it means quit), so we shouldn't use _errcheck_bool
     # which raises on 0.
     # We'll just return the result directly as it's tri-state.
-    return _GetMessage(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax)
+    return GetMessageW(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax)
 
 
-GetSysColor = user32.GetSysColor
-# noinspection DuplicatedCode
-GetSysColor.argtypes = [ctypes.c_int]
-GetSysColor.restype = wintypes.COLORREF
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getsyscolor
+# DWORD GetSysColor(
+#   [in] int nIndex
+# );
+_GetSysColor = ctypes.WINFUNCTYPE(
+    wintypes.COLORREF,
+    ctypes.c_int
+)(
+    ('GetSysColor', user32),
+    (
+        (IN, "nIndex"),
+    )
+)
 
-GetSysColorBrush = user32.GetSysColorBrush
-GetSysColorBrush.argtypes = [ctypes.c_int]
-GetSysColorBrush.restype = wintypes.HBRUSH
 
+def GetSysColor(nIndex: int) -> int:
+    return _GetSysColor(nIndex)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getsyscolorbrush
+# HBRUSH GetSysColorBrush(
+#   [in] int nIndex
+# );
+_GetSysColorBrush = ctypes.WINFUNCTYPE(
+    wintypes.HBRUSH,
+    ctypes.c_int
+)(
+    ('GetSysColorBrush', user32),
+    (
+        (IN, "nIndex"),
+    )
+)
+
+
+def GetSysColorBrush(nIndex: int) -> int:
+    return call_with_last_error_check(_GetSysColorBrush, nIndex)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getsystemmetrics
 # int GetSystemMetrics(
 #   [in] int nIndex
 # );
-GetSystemMetrics = user32.GetSystemMetrics
-GetSystemMetrics.argtypes = [wintypes.INT]
-GetSystemMetrics.restype = wintypes.INT
+_GetSystemMetrics = ctypes.WINFUNCTYPE(
+    wintypes.INT,
+    wintypes.INT
+)(
+    ('GetSystemMetrics', user32),
+    (
+        (IN, "nIndex"),
+    )
+)
+
+
+def GetSystemMetrics(nIndex: int) -> int:
+    return _GetSystemMetrics(nIndex)
+
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptrw
 # LONG_PTR GetWindowLongPtrW(
 #   [in] HWND hWnd,
 #   [in] int  nIndex
 # );
-_GetWindowLongPtrW = user32.GetWindowLongPtrW
-_GetWindowLongPtrW.argtypes = [wintypes.HWND, wintypes.INT]
-_GetWindowLongPtrW.restype = LONG_PTR
+GetWindowLongPtrW = ctypes.WINFUNCTYPE(
+    LONG_PTR,
+    wintypes.HWND,
+    wintypes.INT
+)(
+    ('GetWindowLongPtrW', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "nIndex"),
+    )
+)
 
 
 def GetWindowLong(hWnd: int, nIndex: int) -> int:
     # GetWindowLongPtr can return 0 as a valid value (e.g. if the style is 0).
     # To check for error, we must clear last error, call it, then check last error.
-    return call_with_last_error_check(_GetWindowLongPtrW, hWnd, nIndex)
+    return call_with_last_error_check(GetWindowLongPtrW, hWnd, nIndex)
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowrect
@@ -763,9 +1080,17 @@ def GetWindowLong(hWnd: int, nIndex: int) -> int:
 #   [in]  HWND   hWnd,
 #   [out] LPRECT lpRect
 # );
-_GetWindowRect = user32.GetWindowRect
-_GetWindowRect.argtypes = [wintypes.HWND, wintypes.LPRECT]
-_GetWindowRect.restype = wintypes.BOOL
+_GetWindowRect = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND,
+    wintypes.LPRECT
+)(
+    ('GetWindowRect', user32),
+    (
+        (IN, "hWnd"),
+        (INOUT, "lpRect"),
+    )
+)
 _GetWindowRect.errcheck = errcheck_bool
 
 
@@ -784,62 +1109,164 @@ def GetWindowRect(hWnd: int) -> tuple[int, int, int, int, int, int] | None:
     return None
 
 
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowtextw
 # int GetWindowTextW(
 #   [in]  HWND   hWnd,
 #   [out] LPWSTR lpString,
 #   [in]  int    nMaxCount
 # );
-GetWindowText = user32.GetWindowTextW
-GetWindowText.argtypes = [wintypes.HWND, wintypes.LPWSTR, wintypes.INT]
-GetWindowText.restype = wintypes.INT
+GetWindowTextW = ctypes.WINFUNCTYPE(
+    wintypes.INT,
+    wintypes.HWND,
+    wintypes.LPWSTR,
+    wintypes.INT
+)(
+    ('GetWindowTextW', user32),
+    (
+        (IN, "hWnd"),
+        (INOUT, "lpString"),
+        (IN, "nMaxCount"),
+    )
+)
 
+
+def GetWindowText(hWnd: int, lpString: ctypes.Array, nMaxCount: int) -> int:
+    return call_with_last_error_check(GetWindowTextW, hWnd, lpString, nMaxCount)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowtextlengthw
 # int GetWindowTextLengthW(
 #   [in] HWND hWnd
 # );
-GetWindowTextLength = user32.GetWindowTextLengthW
-GetWindowTextLength.argtypes = [wintypes.HWND]
-GetWindowTextLength.restype = wintypes.INT
+GetWindowTextLengthW = ctypes.WINFUNCTYPE(
+    wintypes.INT,
+    wintypes.HWND
+)(
+    ('GetWindowTextLengthW', user32),
+    (
+        (IN, "hWnd"),
+    )
+)
 
+
+def GetWindowTextLength(hWnd: int) -> int:
+    return call_with_last_error_check(GetWindowTextLengthW, hWnd)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowthreadprocessid
 # DWORD GetWindowThreadProcessId(
 #   [in]            HWND    hWnd,
 #   [out, optional] LPDWORD lpdwProcessId
 # );
-GetWindowThreadProcessId = user32.GetWindowThreadProcessId
-GetWindowThreadProcessId.argtypes = [wintypes.HWND, wintypes.LPDWORD]
-GetWindowThreadProcessId.restype = wintypes.DWORD
+_GetWindowThreadProcessId = ctypes.WINFUNCTYPE(
+    wintypes.DWORD,
+    wintypes.HWND,
+    wintypes.LPDWORD
+)(
+    ('GetWindowThreadProcessId', user32),
+    (
+        (IN, "hWnd"),
+        (INOUT, "lpdwProcessId"),
+    )
+)
 
+
+def GetWindowThreadProcessId(hWnd: int) -> tuple[int, int]:
+    pid = wintypes.DWORD()
+    tid = _GetWindowThreadProcessId(hWnd, ctypes.byref(pid))
+    if tid == 0:
+        raise ctypes.WinError(ctypes.get_last_error())
+    return tid, pid.value
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-invalidaterect
 # BOOL InvalidateRect(
 #   [in] HWND       hWnd,
 #   [in] const RECT *lpRect,
 #   [in] BOOL       bErase
 # );
-InvalidateRect = user32.InvalidateRect
-InvalidateRect.argtypes = [wintypes.HWND, wintypes.LPRECT, wintypes.BOOL]
-InvalidateRect.restype = wintypes.BOOL
+_InvalidateRect = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND,
+    wintypes.LPRECT,
+    wintypes.BOOL
+)(
+    ('InvalidateRect', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "lpRect"),
+        (IN, "bErase"),
+    )
+)
+_InvalidateRect.errcheck = errcheck_bool
 
+
+def InvalidateRect(hWnd: int, lpRect: wintypes.RECT | None, bErase: bool) -> bool:
+    return _InvalidateRect(hWnd, lpRect, bErase)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-isdialogmessagew
 # BOOL IsDialogMessageW(
 #   [in] HWND  hDlg,
 #   [in] LPMSG lpMsg
 # );
-IsDialogMessage = user32.IsDialogMessageW
-IsDialogMessage.argtypes = [wintypes.HWND, wintypes.LPMSG]
-IsDialogMessage.restype = wintypes.BOOL
+IsDialogMessageW = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND,
+    wintypes.LPMSG
+)(
+    ('IsDialogMessageW', user32),
+    (
+        (IN, "hDlg"),
+        (IN, "lpMsg"),
+    )
+)
 
+
+def IsDialogMessage(hDlg: int, lpMsg: Any) -> bool:
+    return IsDialogMessageW(hDlg, lpMsg)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-iswindowenabled
 # BOOL IsWindowEnabled(
 #   [in] HWND hWnd
 # );
-IsWindowEnabled = user32.IsWindowEnabled
-IsWindowEnabled.argtypes = [wintypes.HWND]
-IsWindowEnabled.restype = wintypes.BOOL
+_IsWindowEnabled = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND
+)(
+    ('IsWindowEnabled', user32),
+    (
+        (IN, "hWnd"),
+    )
+)
 
+
+def IsWindowEnabled(hWnd: int) -> bool:
+    return _IsWindowEnabled(hWnd)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-killtimer
 # BOOL KillTimer(
 #   [in, optional] HWND     hWnd,
 #   [in]           UINT_PTR uIDEvent
 # );
-KillTimer = user32.KillTimer
-KillTimer.argtypes = [wintypes.HWND, ULONG_PTR]
-# noinspection DuplicatedCode
-KillTimer.restype = wintypes.BOOL
+_KillTimer = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND,
+    ULONG_PTR
+)(
+    ('KillTimer', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "uIDEvent"),
+    )
+)
+_KillTimer.errcheck = errcheck_bool
+
+
+def KillTimer(hWnd: int, uIDEvent: int) -> bool:
+    return _KillTimer(hWnd, uIDEvent)
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadcursorw
@@ -847,23 +1274,46 @@ KillTimer.restype = wintypes.BOOL
 #   [in, optional] HINSTANCE hInstance,
 #   [in]           LPCWSTR   lpCursorName
 # );
-_LoadCursor = user32.LoadCursorW
-_LoadCursor.argtypes = [wintypes.HINSTANCE, wintypes.LPVOID]
-_LoadCursor.restype = wintypes.HANDLE
+LoadCursorW = ctypes.WINFUNCTYPE(
+    wintypes.HANDLE,
+    wintypes.HINSTANCE,
+    wintypes.LPVOID
+)(
+    ('LoadCursorW', user32),
+    (
+        (IN, "hInstance"),
+        (IN, "lpCursorName"),
+    )
+)
 
 
 def LoadCursor(hInstance: int | None, lpCursorName: int | str) -> int:
-    return call_with_last_error_check(_LoadCursor, hInstance, lpCursorName)
+    return call_with_last_error_check(LoadCursorW, hInstance, lpCursorName)
 
 
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadiconw
 # HICON LoadIconW(
 #   [in, optional] HINSTANCE hInstance,
 #   [in]           LPCWSTR   lpIconName
 # );
-LoadIcon = user32.LoadIconW
-LoadIcon.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR]
-LoadIcon.restype = wintypes.HICON
+LoadIconW = ctypes.WINFUNCTYPE(
+    wintypes.HICON,
+    wintypes.HINSTANCE,
+    wintypes.LPCWSTR
+)(
+    ('LoadIconW', user32),
+    (
+        (IN, "hInstance"),
+        (IN, "lpIconName"),
+    )
+)
 
+
+def LoadIcon(hInstance: int | None, lpIconName: str | int) -> int:
+    return call_with_last_error_check(LoadIconW, hInstance, lpIconName)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadimagew
 # HANDLE LoadImageW(
 #   [in, optional] HINSTANCE hInst,
 #   [in]           LPCWSTR   name,
@@ -872,28 +1322,67 @@ LoadIcon.restype = wintypes.HICON
 #   [in]           int       cy,
 #   [in]           UINT      fuLoad
 # );
-LoadImage = user32.LoadImageW
-LoadImage.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.UINT, ctypes.c_int, ctypes.c_int, wintypes.UINT]
-LoadImage.restype = wintypes.HANDLE
+LoadImageW = ctypes.WINFUNCTYPE(
+    wintypes.HANDLE,
+    wintypes.HINSTANCE,
+    wintypes.LPCWSTR,
+    wintypes.UINT,
+    ctypes.c_int,
+    ctypes.c_int,
+    wintypes.UINT
+)(
+    ('LoadImageW', user32),
+    (
+        (IN, "hInst"),
+        (IN, "name"),
+        (IN, "type"),
+        (IN, "cx"),
+        (IN, "cy"),
+        (IN, "fuLoad"),
+    )
+)
 
+
+def LoadImage(hInst: int | None, name: str, _type: int, cx: int, cy: int, fuLoad: int) -> int:
+    return call_with_last_error_check(LoadImageW, hInst, name, _type, cx, cy, fuLoad)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mapwindowpoints
 # int MapWindowPoints(
 #   [in]      HWND    hWndFrom,
 #   [in]      HWND    hWndTo,
 #   [in, out] LPPOINT lpPoints,
 #   [in]      UINT    cPoints
 # );
-MapWindowPoints = user32.MapWindowPoints
-MapWindowPoints.argtypes = [wintypes.HWND, wintypes.HWND, wintypes.LPRECT, wintypes.UINT]
-MapWindowPoints.restype = wintypes.UINT
+_MapWindowPoints = ctypes.WINFUNCTYPE(
+    wintypes.UINT,
+    wintypes.HWND,
+    wintypes.HWND,
+    wintypes.LPRECT,
+    wintypes.UINT
+)(
+    ('MapWindowPoints', user32),
+    (
+        (IN, "hWndFrom"),
+        (IN, "hWndTo"),
+        (INOUT, "lpPoints"),
+        (IN, "cPoints"),
+    )
+)
 
 
-# int MessageBox(
+def MapWindowPoints(hWndFrom: int, hWndTo: int, lpPoints: wintypes.RECT, cPoints: int) -> int:
+    return call_with_last_error_check(_MapWindowPoints, hWndFrom, hWndTo, ctypes.byref(lpPoints), cPoints)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-messageboxw
+# int MessageBoxW(
 #   [in, optional] HWND    hWnd,
-#   [in, optional] LPCTSTR lpText,
-#   [in, optional] LPCTSTR lpCaption,
+#   [in, optional] LPCWSTR lpText,
+#   [in, optional] LPCWSTR lpCaption,
 #   [in]           UINT    uType
 # );
-MessageBox = ctypes.WINFUNCTYPE(
+MessageBoxW = ctypes.WINFUNCTYPE(
     wintypes.INT,
     wintypes.HWND,
     wintypes.LPCWSTR,
@@ -909,6 +1398,12 @@ MessageBox = ctypes.WINFUNCTYPE(
     )
 )
 
+
+def MessageBox(hWnd: int | None, lpText: str, lpCaption: str, uType: int) -> int:
+    return call_with_last_error_check(MessageBoxW, hWnd, lpText, lpCaption, uType)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-movewindow
 # BOOL MoveWindow(
 #   [in] HWND hWnd,
 #   [in] int  X,
@@ -917,64 +1412,149 @@ MessageBox = ctypes.WINFUNCTYPE(
 #   [in] int  nHeight,
 #   [in] BOOL bRepaint
 # );
-MoveWindow = user32.MoveWindow
-MoveWindow.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, wintypes.BOOL]
-MoveWindow.restype = wintypes.BOOL
+_MoveWindow = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int,
+    wintypes.BOOL
+)(
+    ('MoveWindow', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "X"),
+        (IN, "Y"),
+        (IN, "nWidth"),
+        (IN, "nHeight"),
+        (IN, "bRepaint"),
+    )
+)
+_MoveWindow.errcheck = errcheck_bool
 
+
+def MoveWindow(hWnd: int, X: int, Y: int, nWidth: int, nHeight: int, bRepaint: bool) -> bool:
+    return _MoveWindow(hWnd, X, Y, nWidth, nHeight, bRepaint)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postmessagew
 # BOOL PostMessageW(
 #   [in, optional] HWND   hWnd,
 #   [in]           UINT   Msg,
 #   [in]           WPARAM wParam,
 #   [in]           LPARAM lParam
 # );
-PostMessage = user32.PostMessageW
-PostMessage.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
-PostMessage.restype = wintypes.BOOL
+PostMessageW = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND,
+    wintypes.UINT,
+    wintypes.WPARAM,
+    wintypes.LPARAM
+)(
+    ('PostMessageW', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "Msg"),
+        (IN, "wParam"),
+        (IN, "lParam"),
+    )
+)
+PostMessageW.errcheck = errcheck_bool
+
+
+def PostMessage(hWnd: int, Msg: int, wParam: int, lParam: int) -> bool:
+    return PostMessageW(hWnd, Msg, wParam, lParam)
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postquitmessage
 # void PostQuitMessage(
 #   [in] int nExitCode
 # );
-_PostQuitMessage = user32.PostQuitMessage
-_PostQuitMessage.argtypes = [wintypes.INT]
+_PostQuitMessage = ctypes.WINFUNCTYPE(
+    None,
+    wintypes.INT
+)(
+    ('PostQuitMessage', user32),
+    (
+        (IN, "nExitCode"),
+    )
+)
 
 
 def PostQuitMessage(nExitCode: int) -> None:
     _PostQuitMessage(nExitCode)
 
 
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-ptinrect
 # BOOL PtInRect(
 #   [in] const RECT *lprc,  # noqa
 #   [in] POINT      pt
 # );
-PtInRect = user32.PtInRect
-PtInRect.argtypes = [wintypes.LPRECT, wintypes.POINT]
-PtInRect.restype = wintypes.BOOL
+_PtInRect = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.LPRECT,
+    wintypes.POINT
+)(
+    ('PtInRect', user32),
+    (
+        (IN, "lprc"),
+        (IN, "pt"),
+    )
+)
 
+
+def PtInRect(lprc: wintypes.RECT, pt: wintypes.POINT) -> bool:
+    return _PtInRect(ctypes.byref(lprc), pt)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-redrawwindow
 # BOOL RedrawWindow(
 #   [in] HWND       hWnd,
 #   [in] const RECT *lprcUpdate,
 #   [in] HRGN       hrgnUpdate,
 #   [in] UINT       flags
 # );
-RedrawWindow = user32.RedrawWindow
-RedrawWindow.argtypes = [wintypes.HWND, wintypes.LPRECT, wintypes.HRGN, wintypes.UINT]
-RedrawWindow.restype = wintypes.BOOL
+_RedrawWindow = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND,
+    wintypes.LPRECT,
+    wintypes.HRGN,
+    wintypes.UINT
+)(
+    ('RedrawWindow', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "lprcUpdate"),
+        (IN, "hrgnUpdate"),
+        (IN, "flags"),
+    )
+)
+_RedrawWindow.errcheck = errcheck_bool
+
+
+def RedrawWindow(hWnd: int, lprcUpdate: wintypes.RECT | None, hrgnUpdate: int | None, flags: int) -> bool:
+    return _RedrawWindow(hWnd, lprcUpdate, hrgnUpdate, flags)
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerclassw
 # ATOM RegisterClassW(
 #   [in] const WNDCLASSW *lpWndClass
 # );
-_RegisterClass = user32.RegisterClassW
-_RegisterClass.argtypes = [ctypes.POINTER(WNDCLASS)]
-_RegisterClass.restype = wintypes.ATOM
-_RegisterClass.errcheck = errcheck_zero
+RegisterClassW = ctypes.WINFUNCTYPE(
+    wintypes.ATOM,
+    ctypes.POINTER(WNDCLASS)
+)(
+    ('RegisterClassW', user32),
+    (
+        (IN, "lpWndClass"),
+    )
+)
+RegisterClassW.errcheck = errcheck_zero
 
 
 def RegisterClass(lpWndClass: WNDCLASS) -> int:
-    return _RegisterClass(
+    return RegisterClassW(
         ctypes.byref(lpWndClass)
     )
 
@@ -983,76 +1563,204 @@ def RegisterClass(lpWndClass: WNDCLASS) -> int:
 # ATOM RegisterClassExW(
 #   [in] const WNDCLASSEXW *unnamedParam1
 # );
-_RegisterClassEx = user32.RegisterClassExW
-_RegisterClassEx.argtypes = [ctypes.POINTER(WNDCLASSEX)]
-_RegisterClassEx.restype = wintypes.ATOM
-_RegisterClassEx.errcheck = errcheck_zero
+RegisterClassExW = ctypes.WINFUNCTYPE(
+    wintypes.ATOM,
+    ctypes.POINTER(WNDCLASSEX)
+)(
+    ('RegisterClassExW', user32),
+    (
+        (IN, "unnamedParam1"),
+    )
+)
+RegisterClassExW.errcheck = errcheck_zero
 
 
 def RegisterClassEx(lpWndClassEx: WNDCLASSEX) -> int:
-    return _RegisterClassEx(
+    return RegisterClassExW(
         ctypes.byref(lpWndClassEx)
     )
 
 
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-releasedc
 # int ReleaseDC(
 #   [in] HWND hWnd,
 #   [in] HDC  hDC
 # );
-ReleaseDC = user32.ReleaseDC
-ReleaseDC.argtypes = [wintypes.HWND, wintypes.HDC]
-ReleaseDC.restype = wintypes.INT
+_ReleaseDC = ctypes.WINFUNCTYPE(
+    wintypes.INT,
+    wintypes.HWND,
+    wintypes.HDC
+)(
+    ('ReleaseDC', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "hDC"),
+    )
+)
 
+
+def ReleaseDC(hWnd: int, hDC: int) -> int:
+    return _ReleaseDC(hWnd, hDC)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-screentoclient
 # BOOL ScreenToClient(
 #   [in] HWND    hWnd,
 #        LPPOINT lpPoint
 # );
-ScreenToClient = user32.ScreenToClient
-ScreenToClient.argtypes = [wintypes.HWND, wintypes.LPPOINT]
-ScreenToClient.restype = wintypes.BOOL
+_ScreenToClient = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND,
+    wintypes.LPPOINT
+)(
+    ('ScreenToClient', user32),
+    (
+        (IN, "hWnd"),
+        (INOUT, "lpPoint"),
+    )
+)
+_ScreenToClient.errcheck = errcheck_bool
 
-SendMessage = user32.SendMessageW
-# noinspection DuplicatedCode
-SendMessage.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPVOID]
-SendMessage.restype = wintypes.LPARAM
 
+def ScreenToClient(hWnd: int, lpPoint: wintypes.POINT) -> bool:
+    return _ScreenToClient(hWnd, ctypes.byref(lpPoint))
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendmessagew
+# LRESULT SendMessageW(
+#   [in] HWND   hWnd,
+#   [in] UINT   Msg,
+#   [in] WPARAM wParam,
+#   [in] LPARAM lParam
+# );
+SendMessageW = ctypes.WINFUNCTYPE(
+    wintypes.LPARAM,
+    wintypes.HWND,
+    wintypes.UINT,
+    wintypes.WPARAM,
+    wintypes.LPVOID
+)(
+    ('SendMessageW', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "Msg"),
+        (IN, "wParam"),
+        (IN, "lParam"),
+    )
+)
+
+
+def SendMessage(hWnd: int, Msg: int, wParam: int, lParam: Any) -> int:
+    return SendMessageW(hWnd, Msg, wParam, lParam)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setactivewindow
 # HWND SetActiveWindow(
 #   [in] HWND hWnd
 # );
-SetActiveWindow = user32.SetActiveWindow
-SetActiveWindow.argtypes = [wintypes.HWND]
-SetActiveWindow.restype = wintypes.HWND
+_SetActiveWindow = ctypes.WINFUNCTYPE(
+    wintypes.HWND,
+    wintypes.HWND
+)(
+    ('SetActiveWindow', user32),
+    (
+        (IN, "hWnd"),
+    )
+)
 
+
+def SetActiveWindow(hWnd: int) -> int:
+    return call_with_last_error_check(_SetActiveWindow, hWnd)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setfocus
 # HWND SetFocus(
 #   [in, optional] HWND hWnd
 # );
-SetFocus = user32.SetFocus
-SetFocus.argtypes = [wintypes.HWND]
-SetFocus.restype = wintypes.HWND
+_SetFocus = ctypes.WINFUNCTYPE(
+    wintypes.HWND,
+    wintypes.HWND
+)(
+    ('SetFocus', user32),
+    (
+        (IN, "hWnd"),
+    )
+)
 
+
+def SetFocus(hWnd: int) -> int:
+    return call_with_last_error_check(_SetFocus, hWnd)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setprocessdpiaware
 # BOOL SetProcessDPIAware();
-SetProcessDPIAware = user32.SetProcessDPIAware
-SetProcessDPIAware.restype = wintypes.BOOL
+_SetProcessDPIAware = ctypes.WINFUNCTYPE(
+    wintypes.BOOL
+)(
+    ('SetProcessDPIAware', user32),
+    ()
+)
+_SetProcessDPIAware.errcheck = errcheck_bool
 
+
+def SetProcessDPIAware() -> bool:
+    return _SetProcessDPIAware()
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setscrollinfo
 # int SetScrollInfo(
 #   [in] HWND          hwnd,
 #   [in] int           nBar,
 #   [in] LPCSCROLLINFO lpsi,  # noqa
 #   [in] BOOL          redraw
 # );
-SetScrollInfo = user32.SetScrollInfo
-SetScrollInfo.argtypes = [wintypes.HWND, wintypes.INT, ctypes.POINTER(SCROLLINFO), wintypes.BOOL]
-SetScrollInfo.restype = wintypes.INT
+_SetScrollInfo = ctypes.WINFUNCTYPE(
+    wintypes.INT,
+    wintypes.HWND,
+    wintypes.INT,
+    ctypes.POINTER(SCROLLINFO),
+    wintypes.BOOL
+)(
+    ('SetScrollInfo', user32),
+    (
+        (IN, "hwnd"),
+        (IN, "nBar"),
+        (IN, "lpsi"),
+        (IN, "redraw"),
+    )
+)
 
+
+def SetScrollInfo(hwnd: int, nBar: int, lpsi: SCROLLINFO, redraw: bool) -> int:
+    return _SetScrollInfo(hwnd, nBar, ctypes.byref(lpsi), redraw)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-settimer
 # UINT_PTR SetTimer(
 #   [in, optional] HWND      hWnd,
 #   [in]           UINT_PTR  nIDEvent,
 #   [in]           UINT      uElapse,
 #   [in, optional] TIMERPROC lpTimerFunc
 # );
-SetTimer = user32.SetTimer
-SetTimer.argtypes = [wintypes.HWND, ULONG_PTR, wintypes.UINT, wintypes.LPVOID]
-SetTimer.restype = ULONG_PTR
+_SetTimer = ctypes.WINFUNCTYPE(
+    ULONG_PTR,
+    wintypes.HWND,
+    ULONG_PTR,
+    wintypes.UINT,
+    wintypes.LPVOID
+)(
+    ('SetTimer', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "nIDEvent"),
+        (IN, "uElapse"),
+        (IN, "lpTimerFunc"),
+    )
+)
+
+
+def SetTimer(hWnd: int, nIDEvent: int, uElapse: int, lpTimerFunc: int | None) -> int:
+    return call_with_last_error_check(_SetTimer, hWnd, nIDEvent, uElapse, lpTimerFunc)
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowlongw
@@ -1061,9 +1769,19 @@ SetTimer.restype = ULONG_PTR
 #   [in] int  nIndex,
 #   [in] LONG dwNewLong
 # );
-_SetWindowLongW = user32.SetWindowLongW
-_SetWindowLongW.argtypes = [wintypes.HWND, wintypes.INT, wintypes.LPVOID]
-_SetWindowLongW.restype = wintypes.LONG
+SetWindowLongW = ctypes.WINFUNCTYPE(
+    wintypes.LONG,
+    wintypes.HWND,
+    wintypes.INT,
+    wintypes.LPVOID
+)(
+    ('SetWindowLongW', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "nIndex"),
+        (IN, "dwNewLong"),
+    )
+)
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowlongptrw
 # LONG_PTR SetWindowLongPtrW(
@@ -1072,17 +1790,28 @@ _SetWindowLongW.restype = wintypes.LONG
 #   [in] LONG_PTR dwNewLong
 # );
 if ctypes.sizeof(ctypes.c_void_p) == 8:
-    _SetWindowLongPtrW = user32.SetWindowLongPtrW
-    _SetWindowLongPtrW.argtypes = [wintypes.HWND, wintypes.INT, wintypes.LPVOID]
-    _SetWindowLongPtrW.restype = LONG_PTR
+    SetWindowLongPtrW = ctypes.WINFUNCTYPE(
+        LONG_PTR,
+        wintypes.HWND,
+        wintypes.INT,
+        wintypes.LPVOID
+    )(
+        ('SetWindowLongPtrW', user32),
+        (
+            (IN, "hWnd"),
+            (IN, "nIndex"),
+            (IN, "dwNewLong"),
+        )
+    )
 else:
-    _SetWindowLongPtrW = _SetWindowLongW
+    SetWindowLongPtrW = SetWindowLongW
 
 
 def SetWindowLong(hWnd: int, nIndex: int, dwNewLong: int) -> int:
-    return call_with_last_error_check(_SetWindowLongPtrW, hWnd, nIndex, dwNewLong)
+    return call_with_last_error_check(SetWindowLongPtrW, hWnd, nIndex, dwNewLong)
 
 
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos
 # BOOL SetWindowPos(
 #   [in]           HWND hWnd,
 #   [in, optional] HWND hWndInsertAfter,
@@ -1092,8 +1821,8 @@ def SetWindowLong(hWnd: int, nIndex: int, dwNewLong: int) -> int:
 #   [in]           int  cy,
 #   [in]           UINT uFlags
 # );
-_SetWindowPos = user32.SetWindowPos
-_SetWindowPos.argtypes = [
+_SetWindowPos = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
     wintypes.HWND,
     wintypes.HWND,
     ctypes.c_int,
@@ -1101,8 +1830,18 @@ _SetWindowPos.argtypes = [
     ctypes.c_int,
     ctypes.c_int,
     wintypes.UINT
-]
-_SetWindowPos.restype = wintypes.BOOL
+)(
+    ('SetWindowPos', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "hWndInsertAfter"),
+        (IN, "X"),
+        (IN, "Y"),
+        (IN, "cx"),
+        (IN, "cy"),
+        (IN, "uFlags"),
+    )
+)
 _SetWindowPos.errcheck = errcheck_bool
 
 
@@ -1125,23 +1864,52 @@ def SetWindowPos(hWnd: int, hWndInsertAfter: int, X: int, Y: int, cx: int, cy: i
     return _SetWindowPos(hWnd, hWndInsertAfter, X, Y, cx, cy, uFlags)
 
 
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowrgn
 # int SetWindowRgn(
 #   [in] HWND hWnd,
 #   [in] HRGN hRgn,
 #   [in] BOOL bRedraw
 # );
-SetWindowRgn = user32.SetWindowRgn
-SetWindowRgn.argtypes = [wintypes.HWND, wintypes.HRGN, wintypes.BOOL]
-SetWindowRgn.restype = wintypes.INT
+_SetWindowRgn = ctypes.WINFUNCTYPE(
+    wintypes.INT,
+    wintypes.HWND,
+    wintypes.HRGN,
+    wintypes.BOOL
+)(
+    ('SetWindowRgn', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "hRgn"),
+        (IN, "bRedraw"),
+    )
+)
 
 
+def SetWindowRgn(hWnd: int, hRgn: int, bRedraw: bool) -> int:
+    return call_with_last_error_check(_SetWindowRgn, hWnd, hRgn, bRedraw)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowtextw
 # BOOL SetWindowTextW(
 #   [in]           HWND    hWnd,
 #   [in, optional] LPCWSTR lpString
 # );
-SetWindowText = user32.SetWindowTextW
-SetWindowText.argtypes = [wintypes.HWND, wintypes.LPCWSTR]
-SetWindowText.restype = wintypes.BOOL
+SetWindowTextW = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND,
+    wintypes.LPCWSTR
+)(
+    ('SetWindowTextW', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "lpString"),
+    )
+)
+SetWindowTextW.errcheck = errcheck_bool
+
+
+def SetWindowText(hWnd: int, lpString: str) -> bool:
+    return SetWindowTextW(hWnd, lpString)
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
@@ -1149,30 +1917,56 @@ SetWindowText.restype = wintypes.BOOL
 #   [in] HWND hWnd,
 #   [in] int  nCmdShow
 # );
-_ShowWindow = user32.ShowWindow
-_ShowWindow.argtypes = [wintypes.HWND, wintypes.UINT]
-_ShowWindow.restype = wintypes.BOOL
+_ShowWindow = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND,
+    wintypes.UINT
+)(
+    ('ShowWindow', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "nCmdShow"),
+    )
+)
 
 
 def ShowWindow(hWnd: int, nCmdShow: int) -> bool:
     return _ShowWindow(hWnd, nCmdShow)
 
 
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-trackmouseevent
 # BOOL TrackMouseEvent(
 #   [in, out] LPTRACKMOUSEEVENT lpEventTrack
 # );
-TrackMouseEvent = user32.TrackMouseEvent
-TrackMouseEvent.argtypes = [ctypes.POINTER(TRACKMOUSEEVENT)]
-TrackMouseEvent.restype = wintypes.BOOL
+_TrackMouseEvent = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    ctypes.POINTER(TRACKMOUSEEVENT)
+)(
+    ('TrackMouseEvent', user32),
+    (
+        (INOUT, "lpEventTrack"),
+    )
+)
+_TrackMouseEvent.errcheck = errcheck_bool
+
+
+def TrackMouseEvent(lpEventTrack: TRACKMOUSEEVENT) -> bool:
+    return _TrackMouseEvent(ctypes.byref(lpEventTrack))
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-translatemessage
 # BOOL TranslateMessage(
 #   [in] const MSG *lpMsg
 # );
-_TranslateMessage = user32.TranslateMessage
-_TranslateMessage.argtypes = [wintypes.LPMSG]
-_TranslateMessage.restype = wintypes.BOOL
+_TranslateMessage = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.LPMSG
+)(
+    ('TranslateMessage', user32),
+    (
+        (IN, "lpMsg"),
+    )
+)
 
 
 def TranslateMessage(lpMsg: Any) -> bool:
@@ -1183,9 +1977,15 @@ def TranslateMessage(lpMsg: Any) -> bool:
 # BOOL UpdateWindow(
 #   [in] HWND hWnd
 # );
-_UpdateWindow = user32.UpdateWindow
-_UpdateWindow.argtypes = [wintypes.HWND]
-_UpdateWindow.restype = wintypes.BOOL
+_UpdateWindow = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND
+)(
+    ('UpdateWindow', user32),
+    (
+        (IN, "hWnd"),
+    )
+)
 _UpdateWindow.errcheck = errcheck_bool
 
 
@@ -1198,11 +1998,19 @@ def UpdateWindow(hWnd: int) -> bool:
 #   [in]           LPCWSTR   lpClassName,
 #   [in, optional] HINSTANCE hInstance
 # );
-_UnregisterClass = user32.UnregisterClassW
-_UnregisterClass.argtypes = [wintypes.LPCWSTR, wintypes.HINSTANCE]
-_UnregisterClass.restype = wintypes.BOOL
-_UnregisterClass.errcheck = errcheck_bool
+UnregisterClassW = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.LPCWSTR,
+    wintypes.HINSTANCE
+)(
+    ('UnregisterClassW', user32),
+    (
+        (IN, "lpClassName"),
+        (IN, "hInstance"),
+    )
+)
+UnregisterClassW.errcheck = errcheck_bool
 
 
 def UnregisterClass(lpClassName: str, hInstance: int) -> bool:
-    return _UnregisterClass(lpClassName, hInstance)
+    return UnregisterClassW(lpClassName, hInstance)

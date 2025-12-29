@@ -7,15 +7,25 @@ __all__ = [
     'GetModuleHandle'
 ]
 
+IN = 1
+OUT = 2
+INOUT = 3
+
 kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
 
 # https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulehandlew
 # HMODULE GetModuleHandleW(
 #   [in, optional] LPCWSTR lpModuleName
 # );
-_GetModuleHandle = kernel32.GetModuleHandleW
-_GetModuleHandle.argtypes = [wintypes.LPCWSTR]
-_GetModuleHandle.restype = wintypes.HMODULE
+GetModuleHandleW = ctypes.WINFUNCTYPE(
+    wintypes.HMODULE,
+    wintypes.LPCWSTR
+)(
+    ('GetModuleHandleW', kernel32),
+    (
+        (IN, "lpModuleName"),
+    )
+)
 
 
 def GetModuleHandle(lpModuleName: str | None) -> int:
@@ -31,4 +41,4 @@ def GetModuleHandle(lpModuleName: str | None) -> int:
         int: If the function succeeds, the return value is a handle to the specified module.
              If the function fails, the return value is NULL.
     """
-    return call_with_last_error_check(_GetModuleHandle, lpModuleName)
+    return call_with_last_error_check(GetModuleHandleW, lpModuleName)

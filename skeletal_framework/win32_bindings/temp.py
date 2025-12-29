@@ -7,46 +7,95 @@ from skeletal_framework.win32_bindings.errcheck import errcheck_bool, errcheck_z
 kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
 user32 = ctypes.WinDLL('user32', use_last_error=True)
 
+IN = 1
+OUT = 2
+INOUT = 3
 
+# https://learn.microsoft.com/en-us/windows/console/getconsolewindow
 # HWND WINAPI GetConsoleWindow(void);
-_GetConsoleWindow = kernel32.GetConsoleWindow
-_GetConsoleWindow.argtypes = []
-_GetConsoleWindow.restype = wintypes.HWND
+_GetConsoleWindow = ctypes.WINFUNCTYPE(
+    wintypes.HWND
+)(
+    ('GetConsoleWindow', kernel32),
+    ()
+)
 
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowthreadprocessid
 # DWORD GetWindowThreadProcessId(
 #   [in]            HWND    hWnd,
 #   [out, optional] LPDWORD lpdwProcessId
 # );
-_GetWindowThreadProcessId = user32.GetWindowThreadProcessId
-_GetWindowThreadProcessId.argtypes = [wintypes.HWND, wintypes.LPDWORD]
-_GetWindowThreadProcessId.restype = wintypes.DWORD
+_GetWindowThreadProcessId = ctypes.WINFUNCTYPE(
+    wintypes.DWORD,
+    wintypes.HWND,
+    wintypes.LPDWORD
+)(
+    ('GetWindowThreadProcessId', user32),
+    (
+        (IN, "hWnd"),
+        (INOUT, "lpdwProcessId"),
+    )
+)
 _GetWindowThreadProcessId.errcheck = errcheck_zero
 
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowtextw
 # int GetWindowTextW(
 #   [in]  HWND   hWnd,
 #   [out] LPWSTR lpString,
 #   [in]  int    nMaxCount
 # );
-_GetWindowText = user32.GetWindowTextW
-_GetWindowText.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
-_GetWindowText.restype = ctypes.c_int
+GetWindowTextW = ctypes.WINFUNCTYPE(
+    ctypes.c_int,
+    wintypes.HWND,
+    wintypes.LPWSTR,
+    ctypes.c_int
+)(
+    ('GetWindowTextW', user32),
+    (
+        (IN, "hWnd"),
+        (INOUT, "lpString"),
+        (IN, "nMaxCount"),
+    )
+)
 
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowtextlengthw
 # int GetWindowTextLengthW(
 #   [in] HWND hWnd
-# )_
-_GetWindowTextLength = user32.GetWindowTextLengthW
-_GetWindowTextLength.argtypes = [wintypes.HWND]
-_GetWindowTextLength.restype = wintypes.INT
+# );
+GetWindowTextLengthW = ctypes.WINFUNCTYPE(
+    wintypes.INT,
+    wintypes.HWND
+)(
+    ('GetWindowTextLengthW', user32),
+    (
+        (IN, "hWnd"),
+    )
+)
 
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowrect
 # BOOL GetWindowRect(
 #   [in]  HWND   hWnd,
 #   [out] LPRECT lpRect
 # );
-_GetWindowRect = user32.GetWindowRect
-_GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
-_GetWindowRect.restype = wintypes.BOOL
+_GetWindowRect = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND,
+    ctypes.POINTER(wintypes.RECT)
+)(
+    ('GetWindowRect', user32),
+    (
+        (IN, "hWnd"),
+        (INOUT, "lpRect"),
+    )
+)
 _GetWindowRect.errcheck = errcheck_bool
 
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos
 # BOOL SetWindowPos(
 #   [in]           HWND hWnd,
 #   [in, optional] HWND hWndInsertAfter,
@@ -56,8 +105,8 @@ _GetWindowRect.errcheck = errcheck_bool
 #   [in]           int  cy,
 #   [in]           UINT uFlags
 # );
-_SetWindowPos = user32.SetWindowPos
-_SetWindowPos.argtypes = [
+_SetWindowPos = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
     wintypes.HWND,
     wintypes.HWND,
     ctypes.c_int,
@@ -65,8 +114,18 @@ _SetWindowPos.argtypes = [
     ctypes.c_int,
     ctypes.c_int,
     wintypes.UINT
-]
-_SetWindowPos.restype = wintypes.BOOL
+)(
+    ('SetWindowPos', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "hWndInsertAfter"),
+        (IN, "X"),
+        (IN, "Y"),
+        (IN, "cx"),
+        (IN, "cy"),
+        (IN, "uFlags"),
+    )
+)
 _SetWindowPos.errcheck = errcheck_bool
 # endregion
 
@@ -109,7 +168,7 @@ def GetWindowTextLength(hWnd: int) -> tuple[Array, int]:
     Returns:
         tuple[ctypes.Array, int]: A tuple containing the text buffer (ctypes array) and the text length.
     """
-    text_len = call_with_last_error_check(_GetWindowTextLength, hWnd) + 1
+    text_len = call_with_last_error_check(GetWindowTextLengthW, hWnd) + 1
     text_buffer: Array = ctypes.create_unicode_buffer(text_len)
 
     return text_buffer, text_len
@@ -127,7 +186,7 @@ def GetWindowText(hWnd: int) -> str:
     """
     text_buffer, text_len = GetWindowTextLength(hWnd)
 
-    call_with_last_error_check(_GetWindowText, hWnd, text_buffer, text_len)
+    call_with_last_error_check(GetWindowTextW, hWnd, text_buffer, text_len)
     return text_buffer.value
 
 

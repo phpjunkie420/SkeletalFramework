@@ -2,11 +2,17 @@ import ctypes
 from ctypes import wintypes
 from enum import IntEnum
 
+from skeletal_framework.win32_bindings.errcheck import errcheck_hresult
+
 __all__ = [
     'DwmSetWindowAttribute',
     'DWMWINDOWATTRIBUTE',
     'DWM_WINDOW_CORNER_PREFERENCE'
 ]
+
+IN = 1
+OUT = 2
+INOUT = 3
 
 dwmapi = ctypes.WinDLL('dwmapi', use_last_error=True)
 
@@ -33,9 +39,22 @@ class DWM_WINDOW_CORNER_PREFERENCE(IntEnum):
 #   [in] LPCVOID pvAttribute,
 #   [in] DWORD   cbAttribute
 # );
-_DwmSetWindowAttribute = dwmapi.DwmSetWindowAttribute
-_DwmSetWindowAttribute.argtypes = [wintypes.HWND, wintypes.DWORD, wintypes.LPCVOID, wintypes.DWORD]
-_DwmSetWindowAttribute.restype = ctypes.HRESULT
+_DwmSetWindowAttribute = ctypes.WINFUNCTYPE(
+    ctypes.HRESULT,
+    wintypes.HWND,
+    wintypes.DWORD,
+    wintypes.LPCVOID,
+    wintypes.DWORD
+)(
+    ('DwmSetWindowAttribute', dwmapi),
+    (
+        (IN, "hwnd"),
+        (IN, "dwAttribute"),
+        (IN, "pvAttribute"),
+        (IN, "cbAttribute"),
+    )
+)
+_DwmSetWindowAttribute.errcheck = errcheck_hresult
 
 
 def DwmSetWindowAttribute(hwnd: int, dwAttribute: DWMWINDOWATTRIBUTE, pvAttribute: int | bool = True) -> int:

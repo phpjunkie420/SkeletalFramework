@@ -6,14 +6,24 @@ __all__ = [
     'ShellExecute'
 ]
 
+IN = 1
+OUT = 2
+INOUT = 3
+
 # region Win32 Bindings
 shell32 = ctypes.WinDLL('shell32', use_last_error = True)
 
+# https://learn.microsoft.com/en-us/windows/win32/api/shlobj_core/nf-shlobj_core-isuseranadmin
 # BOOL IsUserAnAdmin();
-_IsUserAnAdmin = shell32.IsUserAnAdmin
-_IsUserAnAdmin.argtypes = []
-_IsUserAnAdmin.restype = wintypes.BOOL
+_IsUserAnAdmin = ctypes.WINFUNCTYPE(
+    wintypes.BOOL
+)(
+    ('IsUserAnAdmin', shell32),
+    ()
+)
 
+
+# https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shellexecutew
 # HINSTANCE ShellExecuteW(
 #   [in, optional] HWND    hwnd,
 #   [in, optional] LPCWSTR lpOperation,
@@ -22,9 +32,25 @@ _IsUserAnAdmin.restype = wintypes.BOOL
 #   [in, optional] LPCWSTR lpDirectory,
 #   [in]           INT     nShowCmd
 # );
-_ShellExecute = shell32.ShellExecuteW
-_ShellExecute.argtypes = [wintypes.HWND, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.INT]
-_ShellExecute.restype = wintypes.HINSTANCE
+ShellExecuteW = ctypes.WINFUNCTYPE(
+    wintypes.HINSTANCE,
+    wintypes.HWND,
+    wintypes.LPCWSTR,
+    wintypes.LPCWSTR,
+    wintypes.LPCWSTR,
+    wintypes.LPCWSTR,
+    wintypes.INT
+)(
+    ('ShellExecuteW', shell32),
+    (
+        (IN, "hwnd"),
+        (IN, "lpOperation"),
+        (IN, "lpFile"),
+        (IN, "lpParameters"),
+        (IN, "lpDirectory"),
+        (IN, "nShowCmd"),
+    )
+)
 # endregion
 
 
@@ -44,4 +70,7 @@ def ShellExecute(
     lpDirectory: str | None = None,
     nShowCmd: int
 ) -> int:
-    return _ShellExecute(hwnd, lpOperation, lpFile, lpParameters, lpDirectory, nShowCmd)
+    ret = ShellExecuteW(hwnd, lpOperation, lpFile, lpParameters, lpDirectory, nShowCmd)
+    if ret <= 32:
+        raise ctypes.WinError(ctypes.get_last_error())
+    return ret
