@@ -1,3 +1,12 @@
+# noinspection PyTypeChecker
+"""
+Provides ctypes definitions and helper functions for interacting with
+the Windows User Interface API (WinUser).
+
+This module includes structures and functions commonly found in `winuser.h`.
+For comprehensive documentation on the Windows User API, refer to:
+https://learn.microsoft.com/en-us/windows/win32/api/winuser/
+"""
 import ctypes
 from ctypes import wintypes
 from collections.abc import Callable
@@ -5,31 +14,41 @@ from typing import Any
 
 from skeletal_framework.win32_bindings.errcheck import errcheck_bool, errcheck_zero, call_with_last_error_check
 
+# noinspection DuplicatedCode
 __all__ = [
-    'CREATESTRUCT',
-    'WNDPROC', 'WNDCLASS', 'WNDCLASSEX',
-    'CreateWindowEx',
-    'DefWindowProc', 'DestroyWindow', 'DispatchMessage',
-    'GetClientRect', 'GetMessage', 'GetWindowLong', 'GetWindowRect',
-    'LoadCursor',
-    'PostQuitMessage',
-    'RegisterClass', 'RegisterClassEx',
-    'SetWindowLong', 'SetWindowPos', 'ShowWindow',
-    'TranslateMessage',
-    'UnregisterClass', 'UpdateWindow'
+    'AppendMenu',
+    'BeginPaint',
+    'CallWindowProc', 'CreateMenu', 'CreateWindowEx',
+    'DefWindowProc', 'DestroyIcon', 'DestroyWindow', 'DispatchMessage', 'DrawFocusRect', 'DrawFrameControl', 'DrawText',
+    'EnableMenuItem', 'EnableWindow', 'EndPaint',
+    'FillRect', 'FrameRect',
+    'GetClientRect', 'GetCursorPos', 'GetDC', 'GetMessage', 'GetSysColor', 'GetSysColorBrush',
+    'GetSystemMetrics', 'GetWindowLong', 'GetWindowRect', 'GetWindowText', 'GetWindowTextLength', 'GetWindowThreadProcessId',
+    'InvalidateRect', 'IsDialogMessage', 'IsWindowEnabled',
+    'KillTimer',
+    'LoadCursor', 'LoadIcon', 'LoadImage',
+    'MapWindowPoints', 'MessageBox', 'MoveWindow',
+    'PostMessage', 'PostQuitMessage', 'PtInRect',
+    'RedrawWindow', 'RegisterClass', 'RegisterClassEx', 'ReleaseDC',
+    'ScreenToClient', 'SetActiveWindow', 'SetFocus', 'SetProcessDPIAware', 'SetScrollInfo', 'SetTimer', 'SendMessage', 'SetWindowLong',
+    'SetWindowPos', 'SetWindowRgn', 'SetWindowText', 'ShowWindow',
+    'TranslateMessage', 'TrackMouseEvent',
+    'UnregisterClass', 'UpdateWindow',
+    'WNDPROC',
+    'COMBOBOXINFO', 'CREATESTRUCT', 'DRAWITEMSTRUCT', 'ICONINFO', 'MEASUREITEMSTRUCT', 'MINMAXINFO',
+    'NMHDR', 'PAINTSTRUCT', 'SCROLLINFO', 'TRACKMOUSEEVENT', 'WNDCLASS', 'WNDCLASSEX',
 ]
 
+IN = 1
+OUT = 2
+INOUT = 3
+
+user32 = ctypes.WinDLL('user32', use_last_error = True)
 
 if ctypes.sizeof(ctypes.c_void_p) == 8:  # 64-bit
     ULONG_PTR = LONG_PTR = LRESULT = ctypes.c_longlong
 else:                                    # 32-bit
     ULONG_PTR = LONG_PTR = LRESULT = ctypes.c_long
-
-IN = 1
-OUT = 3
-INOUT = 3
-
-user32 = ctypes.WinDLL('user32', use_last_error = True)
 
 _WNDPROC = ctypes.WINFUNCTYPE(
     ctypes.HRESULT,
@@ -42,6 +61,18 @@ _WNDPROC = ctypes.WINFUNCTYPE(
 
 def WNDPROC(func: Callable[..., Any]) -> Any:
     return _WNDPROC(func)
+
+
+class COMBOBOXINFO(ctypes.Structure):
+    _fields_ = [
+        ("cbSize", ctypes.c_uint),
+        ("rcItem", wintypes.RECT),
+        ("rcButton", wintypes.RECT),
+        ("stateButton", ctypes.c_uint),
+        ("hwndCombo", ctypes.c_void_p),
+        ("hwndItem", ctypes.c_void_p),
+        ("hwndList", ctypes.c_void_p)
+    ]
 
 
 # typedef struct tagCREATESTRUCTA {
@@ -59,6 +90,7 @@ def WNDPROC(func: Callable[..., Any]) -> Any:
 #   DWORD     dwExStyle;
 # } CREATESTRUCTA, *LPCREATESTRUCTA;
 class CREATESTRUCT(ctypes.Structure):
+    # noinspection SpellCheckingInspection
     _fields_ = [
         ('lpCreateParams', wintypes.LPVOID),
         ('hInstance', wintypes.HINSTANCE),
@@ -73,6 +105,211 @@ class CREATESTRUCT(ctypes.Structure):
         ('lpszClass', wintypes.LPCSTR),
         ('dwExStyle', wintypes.DWORD),
     ]
+
+
+class DRAWITEMSTRUCT(ctypes.Structure):
+    _fields_ = [
+        ("CtlType", ctypes.c_uint),
+        ("CtlID", ctypes.c_uint),
+        ("itemID", ctypes.c_uint),
+        ("itemAction", ctypes.c_uint),
+        ("itemState", ctypes.c_uint),
+        ("hwndItem", ctypes.c_void_p),
+        ("hDC", ctypes.c_void_p),
+        ("rcItem", wintypes.RECT),
+        ("itemData", ctypes.c_void_p)
+    ]
+
+    # noinspection PyPep8Naming
+    def __init__(
+        self,
+        CtlType = 0,
+        CtlID = 0,
+        itemID = 0,
+        itemAction = 0,
+        itemState = 0,
+        hwndItem = None,
+        hDC = None,
+        rcItem = wintypes.RECT(),
+        itemData = None
+    ) -> None:
+        super().__init__()
+        self.CtlType = CtlType
+        self.CtlID = CtlID
+        self.itemID = itemID
+        self.itemAction = itemAction
+        self.itemState = itemState
+        self.hwndItem = hwndItem
+        self.hDC = hDC
+        self.rcItem = rcItem
+        self.itemData = itemData
+
+
+class ICONINFO(ctypes.Structure):
+    _fields_ = [
+        ('fIcon', wintypes.BOOL),
+        ('xHotspot', wintypes.DWORD),
+        ('yHotspot', wintypes.DWORD),
+        ('hbmMask', wintypes.HBITMAP),
+        ('hbmColor', wintypes.HBITMAP),
+    ]
+
+
+# typedef struct tagMEASUREITEMSTRUCT {
+#   UINT      CtlType;
+#   UINT      CtlID;
+#   UINT      itemID;
+#   UINT      itemWidth;
+#   UINT      itemHeight;
+#   ULONG_PTR itemData;
+# } MEASUREITEMSTRUCT, *PMEASUREITEMSTRUCT, *LPMEASUREITEMSTRUCT;
+class MEASUREITEMSTRUCT(ctypes.Structure):
+    _fields_ = [
+        ("CtlType", wintypes.UINT),
+        ("CtlID", wintypes.UINT),
+        ("itemID", wintypes.UINT),
+        ("itemWidth", wintypes.UINT),
+        ("itemHeight", wintypes.UINT),
+        ("itemData", ULONG_PTR)
+    ]
+
+    # noinspection PyPep8Naming
+    def __init__(
+        self,
+        CtlType = 0,
+        CtlID = 0,
+        itemID = 0,
+        itemWidth = 0,
+        itemHeight = 0,
+        itemData = None
+    ) -> None:
+        super().__init__()
+        self.CtlType = CtlType
+        self.CtlID = CtlID
+        self.itemID = itemID
+        self.itemWidth = itemWidth
+        self.itemHeight = itemHeight
+        self.itemData = itemData
+
+
+class MINMAXINFO(ctypes.Structure):
+    _fields_ = [
+        ("ptReserved", wintypes.POINT),
+        ("ptMaxSize", wintypes.POINT),
+        ("ptMaxPosition", wintypes.POINT),
+        ("ptMinTrackSize", wintypes.POINT),
+        ("ptMaxTrackSize", wintypes.POINT),
+    ]
+
+    # noinspection PyPep8Naming
+    def __init__(
+        self,
+        ptReserved = wintypes.POINT(),
+        ptMaxSize = wintypes.POINT(),
+        ptMaxPosition = wintypes.POINT(),
+        ptMinTrackSize = wintypes.POINT(),
+        ptMaxTrackSize = wintypes.POINT(),
+    ) -> None:
+        super().__init__()
+        self.ptReserved = ptReserved
+        self.ptMaxSize = ptMaxSize
+        self.ptMaxPosition = ptMaxPosition
+        self.ptMinTrackSize = ptMinTrackSize
+        self.ptMaxTrackSize = ptMaxTrackSize
+
+
+# typedef struct tagNMHDR {
+#   HWND     hwndFrom;
+#   UINT_PTR idFrom;
+#   UINT     code;
+# } NMHDR;
+class NMHDR(ctypes.Structure):
+    _fields_ = [
+        ('hwndFrom', wintypes.HWND),
+        ('idFrom', ctypes.c_size_t),
+        ('code', wintypes.INT),
+    ]
+
+
+# typedef struct tagPAINTSTRUCT {
+#   HDC  hdc;
+#   BOOL fErase;
+#   RECT rcPaint;
+#   BOOL fRestore;
+#   BOOL fIncUpdate;
+#   BYTE rgbReserved[32];
+# } PAINTSTRUCT, *PPAINTSTRUCT, *NPPAINTSTRUCT, *LPPAINTSTRUCT;
+class PAINTSTRUCT(ctypes.Structure):
+    _fields_ = [
+        ("hdc", wintypes.HDC),
+        ("fErase", wintypes.BOOL),
+        ("rcPaint", wintypes.RECT),
+        ("fRestore", wintypes.BOOL),
+        ("fIncUpdate", wintypes.BOOL),
+        ("rgbReserved", (ctypes.c_byte * 32))
+    ]
+
+
+# typedef struct tagSCROLLINFO {
+#   UINT cbSize;
+#   UINT fMask;
+#   int  nMin;
+#   int  nMax;
+#   UINT nPage;
+#   int  nPos;
+#   int  nTrackPos;
+# } SCROLLINFO, *LPSCROLLINFO;
+class SCROLLINFO(ctypes.Structure):
+    _fields_ = [
+        ("cbSize", wintypes.UINT),
+        ("fMask", wintypes.UINT),
+        ("nMin", wintypes.INT),
+        ("nMax", wintypes.INT),
+        ("nPage", wintypes.UINT),
+        ("nPos", wintypes.INT),
+        ("nTrackPos", wintypes.INT)]
+
+    # noinspection PyPep8Naming
+    def __init__(
+        self,
+        fMask: int = 0,
+        nMin: int = 0,
+        nMax: int = 0,
+        nPage: int = 0,
+        nPos: int = 0,
+        nTrackPos: int = 0,
+    ) -> None:
+        super().__init__()
+        self.cbSize = ctypes.sizeof(SCROLLINFO)
+        self.fMask = fMask or 0x00000007
+        self.nMin = nMin
+        self.nMax = nMax
+        self.nPage = nPage
+        self.nPos = nPos
+        self.nTrackPos = nTrackPos
+
+
+# typedef struct tagTRACKMOUSEEVENT {
+#   DWORD cbSize;
+#   DWORD dwFlags;
+#   HWND  hwndTrack;
+#   DWORD dwHoverTime;
+# } TRACKMOUSEEVENT, *LPTRACKMOUSEEVENT;
+class TRACKMOUSEEVENT(ctypes.Structure):
+    _fields_ = [
+        ('cbSize', wintypes.DWORD),
+        ('dwFlags', wintypes.DWORD),
+        ('hwndTrack', wintypes.HWND),
+        ('dwHoverTime', wintypes.DWORD),
+    ]
+
+    # noinspection PyPep8Naming
+    def __init__(self, dwFlags: int, hwndTrack = None, dwHoverTime = 0):
+        super().__init__()
+        self.cbSize = ctypes.sizeof(self)
+        self.dwFlags = dwFlags or 0x0001
+        self.hwndTrack = hwndTrack
+        self.dwHoverTime = dwHoverTime
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-wndclassw
@@ -173,6 +410,58 @@ class WNDCLASSEX(ctypes.Structure):
         self.lpszClassName = lpszClassName
 
 
+# BOOL AppendMenuW(
+#   [in]           HMENU    hMenu,
+#   [in]           UINT     uFlags,
+#   [in]           UINT_PTR uIDNewItem,
+#   [in, optional] LPCWSTR  lpNewItem
+# );
+_AppendMenu = user32.AppendMenuW
+_AppendMenu.argtypes = [wintypes.HMENU, wintypes.UINT, ctypes.c_void_p, ctypes.c_void_p]
+_AppendMenu.restype = wintypes.BOOL
+
+
+def AppendMenu(hMenu: int, uFlags: int, uIDNewItem: int, lpNewItem: str | None) -> bool:
+    return _AppendMenu(hMenu, uFlags, uIDNewItem, lpNewItem) > 0
+
+
+# HDC BeginPaint(
+#   [in]  HWND          hWnd,
+#   [out] LPPAINTSTRUCT lpPaint
+# );
+_BeginPaint = user32.BeginPaint
+# noinspection PyDeprecation
+_BeginPaint.argtypes = [wintypes.HWND, ctypes.POINTER(PAINTSTRUCT)]
+_BeginPaint.restype = wintypes.HDC
+
+
+def BeginPaint(hwnd: int) -> tuple[PAINTSTRUCT, int]:
+    ps = PAINTSTRUCT()
+    hdc = _BeginPaint(hwnd, ctypes.byref(ps))
+
+    return ps, hdc
+
+
+# LRESULT CallWindowProcW(
+#   [in] WNDPROC lpPrevWndFunc,
+#   [in] HWND    hWnd,
+#   [in] UINT    Msg,
+#   [in] WPARAM  wParam,
+#   [in] LPARAM  lParam
+# );
+_CallWindowProc = user32.CallWindowProcW
+_CallWindowProc.argtypes = [LONG_PTR, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+_CallWindowProc.restype = LRESULT
+
+
+def CallWindowProc(lpPrevWndFunc: int, hWnd: int, Msg: int, wParam: int, lParam: int) -> int:
+    return _CallWindowProc(lpPrevWndFunc, hWnd, Msg, wParam, lParam)
+
+
+# HMENU CreateMenu();
+CreateMenu = user32.CreateMenu
+CreateMenu.restype = wintypes.HMENU
+
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createwindowexw
 # HWND CreateWindowExW(
 #   [in]           DWORD     dwExStyle,
@@ -266,6 +555,18 @@ def DefWindowProc(hWnd: int, Msg: int, wParam: int, lParam: int) -> int:
     return _DefWindowProcW(hWnd, Msg, wParam, lParam)
 
 
+# BOOL DestroyIcon(
+#   [in] HICON hIcon
+# );
+_DestroyIcon = user32.DestroyIcon
+_DestroyIcon.argtypes = [wintypes.HICON]
+_DestroyIcon.restype = wintypes.BOOL
+
+
+def DestroyIcon(hIcon: int) -> bool:
+    return _DestroyIcon(hIcon) > 0
+
+
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-destroywindow
 # BOOL DestroyWindow(
 #   [in] HWND hWnd
@@ -291,6 +592,75 @@ _DispatchMessage.restype = ctypes.c_ssize_t
 
 def DispatchMessage(lpMsg: Any) -> int:
     return _DispatchMessage(lpMsg)
+
+
+# BOOL DrawFocusRect(
+#   [in] HDC        hDC,
+#   [in] const RECT *lprc  # noqa
+# );
+DrawFocusRect = user32.DrawFocusRect
+DrawFocusRect.argtypes = [wintypes.HDC, wintypes.LPRECT]
+DrawFocusRect.restype = wintypes.BOOL
+
+# BOOL DrawFrameControl(
+#   [in] HDC    hdc,
+#   [in] LPRECT lprc,  # noqa
+#   [in] UINT   uType,
+#   [in] UINT   uState
+# );
+DrawFrameControl = user32.DrawFrameControl
+DrawFrameControl.argtypes = [wintypes.HDC, wintypes.LPRECT, wintypes.UINT, wintypes.UINT]
+DrawFrameControl.restype = wintypes.BOOL
+
+DrawText = user32.DrawTextW
+DrawText.argtypes = [
+    wintypes.HDC,
+    wintypes.LPCWSTR,
+    ctypes.c_int,
+    wintypes.LPRECT,
+    wintypes.UINT
+]
+# noinspection DuplicatedCode
+DrawText.restype = ctypes.c_int
+
+# BOOL EnableMenuItem(
+#   [in] HMENU hMenu,
+#   [in] UINT  uIDEnableItem,
+#   [in] UINT  uEnable
+# );
+EnableMenuItem = user32.EnableMenuItem
+EnableMenuItem.argtypes = [wintypes.HMENU, wintypes.UINT, wintypes.UINT]
+EnableMenuItem.restype = wintypes.BOOL
+
+
+# BOOL EnableWindow(
+#   [in] HWND hWnd,
+#   [in] BOOL bEnable
+# );
+EnableWindow = user32.EnableWindow
+EnableWindow.argtypes = [wintypes.HWND, wintypes.BOOL]
+EnableWindow.restype = wintypes.BOOL
+
+# BOOL EndPaint(
+#   [in] HWND              hWnd,
+#   [in] const PAINTSTRUCT *lpPaint
+# );
+_EndPaint = user32.EndPaint
+_EndPaint.argtypes = [wintypes.HWND, ctypes.POINTER(PAINTSTRUCT)]
+_EndPaint.restype = wintypes.BOOL
+
+
+def EndPaint(hwnd: int, ps: PAINTSTRUCT):
+    _EndPaint(hwnd, ctypes.byref(ps))
+
+
+FillRect = user32.FillRect
+FillRect.argtypes = [wintypes.HDC, wintypes.LPRECT, wintypes.HBRUSH]
+FillRect.restype = wintypes.INT
+
+FrameRect = user32.FrameRect
+FrameRect.argtypes = [wintypes.HDC, wintypes.LPRECT, wintypes.HBRUSH]
+FrameRect.restype = wintypes.INT
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getclientrect
@@ -319,6 +689,22 @@ def GetClientRect(hWnd: int) -> tuple[int, int, int, int, int, int] | None:
     return None
 
 
+# BOOL GetCursorPos(
+#   [out] LPPOINT lpPoint
+# );
+GetCursorPos = user32.GetCursorPos
+GetCursorPos.argtypes = [wintypes.LPPOINT]
+# noinspection DuplicatedCode
+GetCursorPos.restype = wintypes.BOOL
+
+# HDC GetDC(
+#   [in] HWND hWnd
+# );
+GetDC = user32.GetDC
+GetDC.argtypes = [wintypes.HWND]
+GetDC.restype = wintypes.HDC
+
+
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmessagew
 # BOOL GetMessageW(
 #   [out]          LPMSG lpMsg,
@@ -339,6 +725,22 @@ def GetMessage(lpMsg: Any, hWnd: int | None, wMsgFilterMin: int, wMsgFilterMax: 
     # We'll just return the result directly as it's tri-state.
     return _GetMessage(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax)
 
+
+GetSysColor = user32.GetSysColor
+# noinspection DuplicatedCode
+GetSysColor.argtypes = [ctypes.c_int]
+GetSysColor.restype = wintypes.COLORREF
+
+GetSysColorBrush = user32.GetSysColorBrush
+GetSysColorBrush.argtypes = [ctypes.c_int]
+GetSysColorBrush.restype = wintypes.HBRUSH
+
+# int GetSystemMetrics(
+#   [in] int nIndex
+# );
+GetSystemMetrics = user32.GetSystemMetrics
+GetSystemMetrics.argtypes = [wintypes.INT]
+GetSystemMetrics.restype = wintypes.INT
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptrw
 # LONG_PTR GetWindowLongPtrW(
@@ -382,6 +784,64 @@ def GetWindowRect(hWnd: int) -> tuple[int, int, int, int, int, int] | None:
     return None
 
 
+# int GetWindowTextW(
+#   [in]  HWND   hWnd,
+#   [out] LPWSTR lpString,
+#   [in]  int    nMaxCount
+# );
+GetWindowText = user32.GetWindowTextW
+GetWindowText.argtypes = [wintypes.HWND, wintypes.LPWSTR, wintypes.INT]
+GetWindowText.restype = wintypes.INT
+
+# int GetWindowTextLengthW(
+#   [in] HWND hWnd
+# );
+GetWindowTextLength = user32.GetWindowTextLengthW
+GetWindowTextLength.argtypes = [wintypes.HWND]
+GetWindowTextLength.restype = wintypes.INT
+
+# DWORD GetWindowThreadProcessId(
+#   [in]            HWND    hWnd,
+#   [out, optional] LPDWORD lpdwProcessId
+# );
+GetWindowThreadProcessId = user32.GetWindowThreadProcessId
+GetWindowThreadProcessId.argtypes = [wintypes.HWND, wintypes.LPDWORD]
+GetWindowThreadProcessId.restype = wintypes.DWORD
+
+# BOOL InvalidateRect(
+#   [in] HWND       hWnd,
+#   [in] const RECT *lpRect,
+#   [in] BOOL       bErase
+# );
+InvalidateRect = user32.InvalidateRect
+InvalidateRect.argtypes = [wintypes.HWND, wintypes.LPRECT, wintypes.BOOL]
+InvalidateRect.restype = wintypes.BOOL
+
+# BOOL IsDialogMessageW(
+#   [in] HWND  hDlg,
+#   [in] LPMSG lpMsg
+# );
+IsDialogMessage = user32.IsDialogMessageW
+IsDialogMessage.argtypes = [wintypes.HWND, wintypes.LPMSG]
+IsDialogMessage.restype = wintypes.BOOL
+
+# BOOL IsWindowEnabled(
+#   [in] HWND hWnd
+# );
+IsWindowEnabled = user32.IsWindowEnabled
+IsWindowEnabled.argtypes = [wintypes.HWND]
+IsWindowEnabled.restype = wintypes.BOOL
+
+# BOOL KillTimer(
+#   [in, optional] HWND     hWnd,
+#   [in]           UINT_PTR uIDEvent
+# );
+KillTimer = user32.KillTimer
+KillTimer.argtypes = [wintypes.HWND, ULONG_PTR]
+# noinspection DuplicatedCode
+KillTimer.restype = wintypes.BOOL
+
+
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadcursorw
 # HCURSOR LoadCursorW(
 #   [in, optional] HINSTANCE hInstance,
@@ -396,6 +856,82 @@ def LoadCursor(hInstance: int | None, lpCursorName: int | str) -> int:
     return call_with_last_error_check(_LoadCursor, hInstance, lpCursorName)
 
 
+# HICON LoadIconW(
+#   [in, optional] HINSTANCE hInstance,
+#   [in]           LPCWSTR   lpIconName
+# );
+LoadIcon = user32.LoadIconW
+LoadIcon.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR]
+LoadIcon.restype = wintypes.HICON
+
+# HANDLE LoadImageW(
+#   [in, optional] HINSTANCE hInst,
+#   [in]           LPCWSTR   name,
+#   [in]           UINT      type,
+#   [in]           int       cx,
+#   [in]           int       cy,
+#   [in]           UINT      fuLoad
+# );
+LoadImage = user32.LoadImageW
+LoadImage.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.UINT, ctypes.c_int, ctypes.c_int, wintypes.UINT]
+LoadImage.restype = wintypes.HANDLE
+
+# int MapWindowPoints(
+#   [in]      HWND    hWndFrom,
+#   [in]      HWND    hWndTo,
+#   [in, out] LPPOINT lpPoints,
+#   [in]      UINT    cPoints
+# );
+MapWindowPoints = user32.MapWindowPoints
+MapWindowPoints.argtypes = [wintypes.HWND, wintypes.HWND, wintypes.LPRECT, wintypes.UINT]
+MapWindowPoints.restype = wintypes.UINT
+
+
+# int MessageBox(
+#   [in, optional] HWND    hWnd,
+#   [in, optional] LPCTSTR lpText,
+#   [in, optional] LPCTSTR lpCaption,
+#   [in]           UINT    uType
+# );
+MessageBox = ctypes.WINFUNCTYPE(
+    wintypes.INT,
+    wintypes.HWND,
+    wintypes.LPCWSTR,
+    wintypes.LPCWSTR,
+    wintypes.UINT
+)(
+    ("MessageBoxW", user32),
+    (
+        (IN, "hWnd"),
+        (IN, "lpText"),
+        (IN, "lpCaption"),
+        (IN, "uType"),
+    )
+)
+
+# BOOL MoveWindow(
+#   [in] HWND hWnd,
+#   [in] int  X,
+#   [in] int  Y,
+#   [in] int  nWidth,
+#   [in] int  nHeight,
+#   [in] BOOL bRepaint
+# );
+MoveWindow = user32.MoveWindow
+MoveWindow.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, wintypes.BOOL]
+MoveWindow.restype = wintypes.BOOL
+
+# BOOL PostMessageW(
+#   [in, optional] HWND   hWnd,
+#   [in]           UINT   Msg,
+#   [in]           WPARAM wParam,
+#   [in]           LPARAM lParam
+# );
+PostMessage = user32.PostMessageW
+PostMessage.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+PostMessage.restype = wintypes.BOOL
+
+
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postquitmessage
 # void PostQuitMessage(
 #   [in] int nExitCode
@@ -406,6 +942,25 @@ _PostQuitMessage.argtypes = [wintypes.INT]
 
 def PostQuitMessage(nExitCode: int) -> None:
     _PostQuitMessage(nExitCode)
+
+
+# BOOL PtInRect(
+#   [in] const RECT *lprc,  # noqa
+#   [in] POINT      pt
+# );
+PtInRect = user32.PtInRect
+PtInRect.argtypes = [wintypes.LPRECT, wintypes.POINT]
+PtInRect.restype = wintypes.BOOL
+
+# BOOL RedrawWindow(
+#   [in] HWND       hWnd,
+#   [in] const RECT *lprcUpdate,
+#   [in] HRGN       hrgnUpdate,
+#   [in] UINT       flags
+# );
+RedrawWindow = user32.RedrawWindow
+RedrawWindow.argtypes = [wintypes.HWND, wintypes.LPRECT, wintypes.HRGN, wintypes.UINT]
+RedrawWindow.restype = wintypes.BOOL
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerclassw
@@ -438,6 +993,66 @@ def RegisterClassEx(lpWndClassEx: WNDCLASSEX) -> int:
     return _RegisterClassEx(
         ctypes.byref(lpWndClassEx)
     )
+
+
+# int ReleaseDC(
+#   [in] HWND hWnd,
+#   [in] HDC  hDC
+# );
+ReleaseDC = user32.ReleaseDC
+ReleaseDC.argtypes = [wintypes.HWND, wintypes.HDC]
+ReleaseDC.restype = wintypes.INT
+
+# BOOL ScreenToClient(
+#   [in] HWND    hWnd,
+#        LPPOINT lpPoint
+# );
+ScreenToClient = user32.ScreenToClient
+ScreenToClient.argtypes = [wintypes.HWND, wintypes.LPPOINT]
+ScreenToClient.restype = wintypes.BOOL
+
+SendMessage = user32.SendMessageW
+# noinspection DuplicatedCode
+SendMessage.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPVOID]
+SendMessage.restype = wintypes.LPARAM
+
+# HWND SetActiveWindow(
+#   [in] HWND hWnd
+# );
+SetActiveWindow = user32.SetActiveWindow
+SetActiveWindow.argtypes = [wintypes.HWND]
+SetActiveWindow.restype = wintypes.HWND
+
+# HWND SetFocus(
+#   [in, optional] HWND hWnd
+# );
+SetFocus = user32.SetFocus
+SetFocus.argtypes = [wintypes.HWND]
+SetFocus.restype = wintypes.HWND
+
+# BOOL SetProcessDPIAware();
+SetProcessDPIAware = user32.SetProcessDPIAware
+SetProcessDPIAware.restype = wintypes.BOOL
+
+# int SetScrollInfo(
+#   [in] HWND          hwnd,
+#   [in] int           nBar,
+#   [in] LPCSCROLLINFO lpsi,  # noqa
+#   [in] BOOL          redraw
+# );
+SetScrollInfo = user32.SetScrollInfo
+SetScrollInfo.argtypes = [wintypes.HWND, wintypes.INT, ctypes.POINTER(SCROLLINFO), wintypes.BOOL]
+SetScrollInfo.restype = wintypes.INT
+
+# UINT_PTR SetTimer(
+#   [in, optional] HWND      hWnd,
+#   [in]           UINT_PTR  nIDEvent,
+#   [in]           UINT      uElapse,
+#   [in, optional] TIMERPROC lpTimerFunc
+# );
+SetTimer = user32.SetTimer
+SetTimer.argtypes = [wintypes.HWND, ULONG_PTR, wintypes.UINT, wintypes.LPVOID]
+SetTimer.restype = ULONG_PTR
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowlongw
@@ -510,6 +1125,25 @@ def SetWindowPos(hWnd: int, hWndInsertAfter: int, X: int, Y: int, cx: int, cy: i
     return _SetWindowPos(hWnd, hWndInsertAfter, X, Y, cx, cy, uFlags)
 
 
+# int SetWindowRgn(
+#   [in] HWND hWnd,
+#   [in] HRGN hRgn,
+#   [in] BOOL bRedraw
+# );
+SetWindowRgn = user32.SetWindowRgn
+SetWindowRgn.argtypes = [wintypes.HWND, wintypes.HRGN, wintypes.BOOL]
+SetWindowRgn.restype = wintypes.INT
+
+
+# BOOL SetWindowTextW(
+#   [in]           HWND    hWnd,
+#   [in, optional] LPCWSTR lpString
+# );
+SetWindowText = user32.SetWindowTextW
+SetWindowText.argtypes = [wintypes.HWND, wintypes.LPCWSTR]
+SetWindowText.restype = wintypes.BOOL
+
+
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
 # BOOL ShowWindow(
 #   [in] HWND hWnd,
@@ -522,6 +1156,14 @@ _ShowWindow.restype = wintypes.BOOL
 
 def ShowWindow(hWnd: int, nCmdShow: int) -> bool:
     return _ShowWindow(hWnd, nCmdShow)
+
+
+# BOOL TrackMouseEvent(
+#   [in, out] LPTRACKMOUSEEVENT lpEventTrack
+# );
+TrackMouseEvent = user32.TrackMouseEvent
+TrackMouseEvent.argtypes = [ctypes.POINTER(TRACKMOUSEEVENT)]
+TrackMouseEvent.restype = wintypes.BOOL
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-translatemessage

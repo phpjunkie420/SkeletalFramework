@@ -7,10 +7,11 @@ from typing import Optional
 import win32con
 from PIL import Image, ImageWin
 
-from core.core_context import CoreContext
-from ui.dispatcher import dispatcher
-from win32_bindings import *
-from win32_bindings.macros import adjust_rgb
+from skeletal_framework.core_context import CoreContext
+from skeletal_framework.win32_bindings.dispatcher import Dispatcher
+from skeletal_framework.win32_bindings.gdi32 import CreateSolidBrush, CreatePen, DeleteObject, SelectObject, MoveToEx, LineTo, SetBkMode, SetTextColor, LOGFONT, CreateFontIndirect
+from skeletal_framework.win32_bindings.user32 import GetClientRect, CreateWindowEx, ShowWindow, UpdateWindow, RegisterClassEx, WNDCLASSEX, LoadCursor, BeginPaint, EndPaint, FillRect, DestroyWindow, GetSysColorBrush, DefWindowProc, DrawText
+from skeletal_framework.win32_bindings.macros import adjust_rgb
 
 # Dictionary to store instances by window handle
 _image_panel_instances = {}
@@ -89,7 +90,7 @@ class Header:
             ctypes.byref(
                 WNDCLASSEX(
                     style = win32con.CS_HREDRAW | win32con.CS_VREDRAW,
-                    lpfnWndProc = dispatcher,
+                    lpfnWndProc = Dispatcher,
                     hInstance = h_instance,
                     hCursor = LoadCursor(0, win32con.IDC_ARROW),
                     hbrBackground = GetSysColorBrush(win32con.BLACK_BRUSH),

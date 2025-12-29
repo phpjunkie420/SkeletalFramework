@@ -510,13 +510,20 @@ SelectObject = ctypes.WINFUNCTYPE(
     )
 )
 
+
+# https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-setbkcolor
 # COLORREF SetBkColor(
 #   [in] HDC      hdc,
 #   [in] COLORREF color
 # );
-SetBkColor = gdi32.SetBkColor
-SetBkColor.argtypes = [wintypes.HDC, wintypes.COLORREF]
-SetBkColor.restype = wintypes.COLORREF
+_SetBkColor = gdi32.SetBkColor
+_SetBkColor.argtypes = [wintypes.HDC, wintypes.COLORREF]
+_SetBkColor.restype = wintypes.COLORREF
+
+
+def SetBkColor(hdc: int, color: int) -> int:
+    return _SetBkColor(hdc, color)
+
 
 SetBkMode = ctypes.WINFUNCTYPE(
     wintypes.INT,
@@ -572,7 +579,12 @@ SetPixel.argtypes = [wintypes.HDC, ctypes.c_int, ctypes.c_int, wintypes.COLORREF
 SetPixel.restype = wintypes.COLORREF
 
 
-SetTextColor = ctypes.WINFUNCTYPE(
+# https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-settextcolor
+# COLORREF SetTextColor(
+#   [in] HDC      hdc,
+#   [in] COLORREF color
+# );
+_SetTextColor = ctypes.WINFUNCTYPE(
     wintypes.COLORREF,
     wintypes.HDC,
     wintypes.COLORREF,
@@ -583,3 +595,7 @@ SetTextColor = ctypes.WINFUNCTYPE(
         (IN, "color"),
     )
 )
+
+
+def SetTextColor(hdc: int, color: int) -> int:
+    return _SetTextColor(hdc, color)

@@ -3,7 +3,19 @@ from ctypes import wintypes
 
 import win32con
 
-from win32_bindings import *
+from skeletal_framework.win32_bindings.gdi32 import (
+    # Structures
+    LOGFONT,
+
+    # Functions
+    CreateFontIndirect, CreatePen, CreateSolidBrush,
+    DeleteObject,
+    ExtTextOut,
+    GetTextExtentPoint32,
+    RoundRect,
+    SelectObject, SetBkMode, SetTextColor
+)
+from skeletal_framework.win32_bindings.user32 import FillRect, GetDC, GetSysColor, ReleaseDC
 
 
 class GroupBox:

@@ -3,12 +3,26 @@ from ctypes import wintypes
 
 import win32con
 
-from skeletal_framework.win32_bindings.dispatcher import *
-from skeletal_framework.win32_bindings.dwmapi import *
-from skeletal_framework.win32_bindings.gdi32 import *
-from skeletal_framework.win32_bindings.kernel32 import *
-from skeletal_framework.win32_bindings.monitor_info import *
-from skeletal_framework.win32_bindings.user32 import *
+from skeletal_framework.core_context import CoreContext
+from skeletal_framework.win32_bindings.dispatcher import Dispatcher
+from skeletal_framework.win32_bindings.dwmapi import DwmSetWindowAttribute, DWMWINDOWATTRIBUTE
+from skeletal_framework.win32_bindings.gdi32 import CreateSolidBrush, DeleteObject
+from skeletal_framework.win32_bindings.monitor_info import GetMonitorInfo, MonitorFromPoint
+from skeletal_framework.win32_bindings.user32 import (
+    # Structures
+    WNDCLASS,
+
+    # Functions
+    CreateWindowEx,
+    DefWindowProc, DestroyWindow, DispatchMessage,
+    GetMessage, GetClientRect, GetWindowRect,
+    LoadCursor,
+    PostQuitMessage,
+    RegisterClass,
+    SetWindowPos, ShowWindow,
+    UpdateWindow, UnregisterClass,
+    TranslateMessage
+)
 
 
 class AbstractDialogWindow:
@@ -16,7 +30,7 @@ class AbstractDialogWindow:
     _WINDOW_NAME = 'Abstract Dialog'
 
     def __init__(self):
-        self._hwnd: int | None = None
+        self._core_context = CoreContext()
 
         self._hbr_background = CreateSolidBrush(
             color = wintypes.RGB(
@@ -27,14 +41,15 @@ class AbstractDialogWindow:
         self._width = 800
         self._height = 600
 
-        self._h_instance = GetModuleHandle(None)
-
         self._atom = self._register_class()
         self._create_window()
 
     def wnd_proc(self, hwnd, msg, wparam, lparam):
         if msg == win32con.WM_NCCREATE:
-            self._hwnd = hwnd
+            self._core_context.setattr(
+                'main_window',
+                hwnd
+            )
 
         elif msg == win32con.WM_CREATE:
             self.invalidate_geometry()
@@ -53,7 +68,7 @@ class AbstractDialogWindow:
 
     def _use_immersive_dark_mode(self):
         DwmSetWindowAttribute(
-            hwnd = self._hwnd,
+            hwnd = self._core_context.main_window,
             dwAttribute = DWMWINDOWATTRIBUTE.DWMWA_USE_IMMERSIVE_DARK_MODE,
             pvAttribute = True
         )
@@ -70,7 +85,7 @@ class AbstractDialogWindow:
             x = win32con.CW_USEDEFAULT, y = win32con.CW_USEDEFAULT,
             nWidth = self._width, nHeight = self._height,
             hWndParent = None, hMenu = None,
-            hInstance = self._h_instance, lpParam = id(self)
+            hInstance = self._core_context.h_instance, lpParam = id(self)
         )
 
     def _register_class(self):
@@ -78,7 +93,7 @@ class AbstractDialogWindow:
             lpWndClass = WNDCLASS(
                 style = win32con.CS_HREDRAW | win32con.CS_VREDRAW,
                 lpfnWndProc = Dispatcher,
-                hInstance = self._h_instance,
+                hInstance = self._core_context.h_instance,
                 hIcon = None,
                 hbrBackground = self._hbr_background,
                 hCursor = LoadCursor(0, win32con.IDC_ARROW),
@@ -87,20 +102,20 @@ class AbstractDialogWindow:
         )
 
     def invalidate_geometry(self):
-        *_, width, height = GetClientRect(self._hwnd)
+        *_, width, height = GetClientRect(self._core_context.main_window)
 
         width_adjustment = self._width - width
         height_adjustment = self._height - height
 
         if width_adjustment > 0 or height_adjustment > 0:
-            *_, width, height = GetWindowRect(self._hwnd)
+            *_, width, height = GetWindowRect(self._core_context.main_window)
             current_width, current_height = width, height
 
             width, height = current_width + width_adjustment, current_height + height_adjustment
 
             monitor = GetMonitorInfo(MonitorFromPoint(0, 0))
             SetWindowPos(
-                self._hwnd, 0,
+                self._core_context.main_window, 0,
                 (monitor.width - width) // 2, (monitor.height - height) // 2,
                 width, height,
                 win32con.SWP_NOZORDER | win32con.SWP_NOACTIVATE
@@ -112,20 +127,27 @@ class AbstractDialogWindow:
         except OSError:
             pass
 
-        if self._hwnd is not None and self._hwnd:
-            DestroyWindow(self._hwnd)
+        hwnd = self._core_context.main_window
+        if hwnd is not None and hwnd:
+            DestroyWindow(hwnd)
             try:
-                UnregisterClass(self._CLASS_NAME, self._h_instance)
+                UnregisterClass(self._CLASS_NAME, self._core_context.h_instance)
             except:  # noqa
                 pass
 
     def show_window(self):
         self._use_immersive_dark_mode()
 
-        ShowWindow(self._hwnd, win32con.SW_SHOW)
-        UpdateWindow(self._hwnd)
+        hwnd = self._core_context.main_window
+        ShowWindow(hwnd, win32con.SW_SHOW)
+        UpdateWindow(hwnd)
 
         msg = ctypes.byref(wintypes.MSG())
         while GetMessage(msg, None, 0, 0) > 0:
             TranslateMessage(msg)
             DispatchMessage(msg)
+
+
+if __name__ == '__main__':
+    dialog = AbstractDialogWindow()
+    dialog.show_window()
