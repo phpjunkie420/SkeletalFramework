@@ -3,38 +3,61 @@ from ctypes import wintypes
 
 import win32con
 
-from abstract_window import AbstractDialogWindow
-from win32_bindings.gdi32 import CreateSolidBrush, DeleteObject, SetBkColor, SetTextColor
-from win32_bindings.user32 import CreateWindowEx, DefWindowProc, PostQuitMessage
-from win32_bindings.uxtheme import SetWindowTheme
+from skeletal_framework.controls.label import Label, Style
+from skeletal_framework.core_context import CoreContext
+from skeletal_framework.dispatcher import Dispatcher
+from skeletal_framework.win32_bindings.dwmapi import DwmSetWindowAttribute, DWMWINDOWATTRIBUTE
+from skeletal_framework.win32_bindings.gdi32 import CreateSolidBrush, DeleteObject
+from skeletal_framework.win32_bindings.monitor_info import GetMonitorInfo, MonitorFromPoint
+from skeletal_framework.win32_bindings.user32 import (
+    # Structures
+    WNDCLASS,
+
+    # Functions
+    CreateWindowEx,
+    DefWindowProc, DestroyWindow, DispatchMessage,
+    GetMessage, GetClientRect, GetWindowRect,
+    LoadCursor,
+    PostQuitMessage,
+    RegisterClass,
+    SetWindowPos, ShowWindow,
+    UpdateWindow, UnregisterClass,
+    TranslateMessage
+)
 
 
-class ExampleDialog(AbstractDialogWindow):
+class ExampleWindow:
+    _CLASS_NAME = 'ExampleWindowClass'
+    _WINDOW_NAME = 'Example Window'
+
     def __init__(self):
-        super(ExampleDialog, self).__init__(
-            window_name = 'Example Dialog',
-            width = 800, height = 600,
-            # dark_mode = True
+        self._core_context = CoreContext()
+
+        self._hbr_background: int | None = CreateSolidBrush(
+            color = wintypes.RGB(
+                red = 75, green = 75, blue = 75
+            )
         )
-        self._hbr_edit_background = CreateSolidBrush(wintypes.RGB(255, 255, 255))
+
+        self._width = 800
+        self._height = 600
+
+        self._label: Label | None = None
+
+        self._atom = self._register_class()
+        self._create_window()
 
     def wnd_proc(self, hwnd, msg, wparam, lparam):
         if msg == win32con.WM_NCCREATE:
-            self._hwnd = hwnd
+            self._core_context.setattr(
+                'main_window',
+                hwnd
+            )
 
         elif msg == win32con.WM_CREATE:
             self.invalidate_geometry()
             self.create_controls()
             return 0
-
-        elif msg == win32con.WM_CTLCOLORSTATIC:
-            hdc = wparam
-            # Set text color to white
-            SetTextColor(hdc, wintypes.RGB(200, 0, 0))
-            # Set background color of the text to dark gray
-            SetBkColor(hdc, wintypes.RGB(255, 255, 255))
-            # Return the brush handle for the control background
-            return self._hbr_edit_background
 
         elif msg == win32con.WM_CLOSE:
             pass
@@ -46,39 +69,97 @@ class ExampleDialog(AbstractDialogWindow):
 
         return DefWindowProc(hwnd, msg, wparam, lparam)
 
-    def create_controls(self):
-        hwnd_edit = CreateWindowEx(
-            dwExStyle = 0,
-            lpClassName = 'EDIT',
-            lpWindowName = 'This is a read-only info box.\r\nIt has custom colors.',
-            dwStyle = (
-                win32con.WS_CHILD
-                | win32con.WS_VISIBLE
-                | win32con.WS_BORDER
-                | win32con.ES_MULTILINE
-                | win32con.ES_AUTOVSCROLL
-                | win32con.WS_VSCROLL
-                | win32con.ES_READONLY
-            ),
-            x = 10, y = 10,
-            nWidth = self._width - 20, nHeight = self._height - 20,
-            hWndParent = self._hwnd,
-            hMenu = None,
-            hInstance = self._h_instance,
-            lpParam = None
+    def _use_immersive_dark_mode(self):
+        DwmSetWindowAttribute(
+            hwnd = self._core_context.main_window,
+            dwAttribute = DWMWINDOWATTRIBUTE.DWMWA_USE_IMMERSIVE_DARK_MODE,
+            pvAttribute = True
         )
-        
-        # SetWindowTheme(hwnd_edit, "DarkMode_Explorer", None)
+
+    def create_controls(self):
+        self._label = Label(
+            'Hello World!',
+            10, 10, self._width - 20, 20,
+            1000
+
+        )
+
+    def _create_window(self):
+        return CreateWindowEx(
+            dwExStyle = win32con.WS_EX_TOPMOST,
+            lpClassName = self._CLASS_NAME,
+            lpWindowName = self._WINDOW_NAME,
+            dwStyle = win32con.WS_SYSMENU,
+            x = win32con.CW_USEDEFAULT, y = win32con.CW_USEDEFAULT,
+            nWidth = self._width, nHeight = self._height,
+            hWndParent = None, hMenu = None,
+            hInstance = self._core_context.h_instance, lpParam = id(self)
+        )
+
+    def _register_class(self):
+        return RegisterClass(
+            lpWndClass = WNDCLASS(
+                style = win32con.CS_HREDRAW | win32con.CS_VREDRAW,
+                lpfnWndProc = Dispatcher,
+                hInstance = self._core_context.h_instance,
+                hIcon = None,
+                hbrBackground = self._hbr_background,
+                hCursor = LoadCursor(0, win32con.IDC_ARROW),
+                lpszClassName = self._CLASS_NAME
+            )
+        )
+
+    def invalidate_geometry(self):
+        *_, width, height, _ = GetClientRect(self._core_context.main_window)
+
+        width_adjustment = self._width - width
+        height_adjustment = self._height - height
+
+        if width_adjustment > 0 or height_adjustment > 0:
+            *_, width, height, _ = GetWindowRect(self._core_context.main_window)
+            current_width, current_height = width, height
+
+            width, height = current_width + width_adjustment, current_height + height_adjustment
+
+            monitor = GetMonitorInfo(MonitorFromPoint(0, 0))
+            SetWindowPos(
+                self._core_context.main_window, 0,
+                (monitor.width - width) // 2, (monitor.height - height) // 2,
+                width, height,
+                win32con.SWP_NOZORDER | win32con.SWP_NOACTIVATE
+            )
 
     def destroy(self):
-        try:
-            DeleteObject(self._hbr_edit_background)
-        except OSError:
-            pass
+        if hasattr(self, '_hbr_background'):
+            DeleteObject(self._hbr_background)
+            del self._hbr_background
 
-        super(ExampleDialog, self).destroy()
+        hwnd = self._core_context.main_window
+        if hwnd is not None and hwnd:
+            DestroyWindow(hwnd)
+            try:
+                UnregisterClass(self._CLASS_NAME, self._core_context.h_instance)
+            except:  # noqa
+                pass
+
+    def show_window(self):
+        hwnd = self._core_context.main_window
+
+        DwmSetWindowAttribute(
+            hwnd = hwnd,
+            dwAttribute = DWMWINDOWATTRIBUTE.DWMWA_CAPTION_COLOR,
+            pvAttribute = wintypes.RGB(50, 50, 50)
+        )
+
+        ShowWindow(hwnd, win32con.SW_SHOW)
+        UpdateWindow(hwnd)
+
+        msg = ctypes.byref(wintypes.MSG())
+        while GetMessage(msg, None, 0, 0) > 0:
+            TranslateMessage(msg)
+            DispatchMessage(msg)
 
 
 if __name__ == '__main__':
-    dialog = ExampleDialog()
+    dialog = ExampleWindow()
     dialog.show_window()

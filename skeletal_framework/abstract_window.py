@@ -4,7 +4,7 @@ from ctypes import wintypes
 import win32con
 
 from skeletal_framework.core_context import CoreContext
-from skeletal_framework.win32_bindings.dispatcher import Dispatcher
+from skeletal_framework.dispatcher import Dispatcher
 from skeletal_framework.win32_bindings.dwmapi import DwmSetWindowAttribute, DWMWINDOWATTRIBUTE
 from skeletal_framework.win32_bindings.gdi32 import CreateSolidBrush, DeleteObject
 from skeletal_framework.win32_bindings.monitor_info import GetMonitorInfo, MonitorFromPoint

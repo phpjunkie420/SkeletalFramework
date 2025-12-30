@@ -675,7 +675,7 @@ _MoveToEx = ctypes.WINFUNCTYPE(
         (IN, "hdc"),
         (IN, "x"),
         (IN, "y"),
-        (INOUT, "lppt"),
+        (IN, "lppt"),
     )
 )
 

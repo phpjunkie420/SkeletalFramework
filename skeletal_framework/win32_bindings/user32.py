@@ -22,16 +22,17 @@ __all__ = [
     'DefWindowProc', 'DestroyIcon', 'DestroyWindow', 'DispatchMessage', 'DrawFocusRect', 'DrawFrameControl', 'DrawText',
     'EnableMenuItem', 'EnableWindow', 'EndPaint',
     'FillRect', 'FrameRect',
-    'GetClientRect', 'GetCursorPos', 'GetDC', 'GetMessage', 'GetSysColor', 'GetSysColorBrush',
-    'GetSystemMetrics', 'GetWindowLong', 'GetWindowRect', 'GetWindowText', 'GetWindowTextLength', 'GetWindowThreadProcessId',
+    'GetClientRect', 'GetCursorPos', 'GetDC', 'GetMessage', 'GetScrollInfo', 'GetSysColor', 'GetSysColorBrush',
+    'GetSystemMetrics', 'GetWindowLong', 'GetWindowRect', 'GetWindowText', 'GetWindowThreadProcessId',
+    'HideCaret',
     'InvalidateRect', 'IsDialogMessage', 'IsWindowEnabled',
     'KillTimer',
     'LoadCursor', 'LoadIcon', 'LoadImage',
     'MapWindowPoints', 'MessageBox', 'MoveWindow',
     'PostMessage', 'PostQuitMessage', 'PtInRect',
-    'RedrawWindow', 'RegisterClass', 'RegisterClassEx', 'ReleaseDC',
-    'ScreenToClient', 'SetActiveWindow', 'SetFocus', 'SetProcessDPIAware', 'SetScrollInfo', 'SetTimer', 'SendMessage', 'SetWindowLong',
-    'SetWindowPos', 'SetWindowRgn', 'SetWindowText', 'ShowWindow',
+    'RedrawWindow', 'RegisterClass', 'RegisterClassEx', 'ReleaseCapture', 'ReleaseDC',
+    'ScreenToClient', 'SetActiveWindow', 'SetCapture', 'SetFocus', 'SetProcessDPIAware', 'SetScrollInfo',
+    'SetTimer', 'SendMessage', 'SetWindowLong', 'SetWindowPos', 'SetWindowRgn', 'SetWindowText', 'ShowScrollBar', 'ShowWindow',
     'TranslateMessage', 'TrackMouseEvent',
     'UnregisterClass', 'UpdateWindow',
     'WNDPROC',
@@ -451,7 +452,7 @@ _BeginPaint = ctypes.WINFUNCTYPE(
     ('BeginPaint', user32),
     (
         (IN, "hWnd"),
-        (OUT, "lpPaint"),
+        (IN, "lpPaint"),
     )
 )
 
@@ -750,7 +751,10 @@ DrawTextW = ctypes.WINFUNCTYPE(
 )
 
 
-def DrawText(hdc: int, lpString: str, nCount: int, lpRect: wintypes.RECT, uFormat: int) -> int:
+def DrawText(hdc: int, lpString: str, nCount: int, lpRect: tuple[int, int, int, int] | wintypes.RECT, uFormat: int) -> int:
+    if isinstance(lpRect, tuple):
+        lpRect = wintypes.RECT(*lpRect)
+
     ret = DrawTextW(hdc, lpString, nCount, ctypes.byref(lpRect), uFormat)
     if ret == 0:
         raise ctypes.WinError(ctypes.get_last_error())
@@ -851,7 +855,10 @@ _FillRect = ctypes.WINFUNCTYPE(
 )
 
 
-def FillRect(hDC: int, lprc: wintypes.RECT, hbr: int) -> int:
+def FillRect(hDC: int, lprc: tuple[int, int, int, int] | wintypes.RECT, hbr: int) -> int:
+    if isinstance(lprc, tuple):
+        lprc = wintypes.RECT(*lprc)
+
     ret = _FillRect(hDC, ctypes.byref(lprc), hbr)
     if ret == 0:
         raise ctypes.WinError(ctypes.get_last_error())
@@ -905,17 +912,17 @@ _GetClientRect = ctypes.WINFUNCTYPE(
 _GetClientRect.errcheck = errcheck_bool
 
 
-def GetClientRect(hWnd: int) -> tuple[int, int, int, int, int, int] | None:
+def GetClientRect(hWnd: int) -> tuple[int, int, int, int, int, int, wintypes.RECT] | None:
     """
     Args:
         hWnd (int): A handle to the window whose client coordinates are to be retrieved.
 
     Returns:
-        tuple[int, int, int, int, int, int] | None: A tuple containing (left, top, right, bottom, width, height)
+        tuple[int, int, int, int, int, int, RECT] | None: A tuple containing (left, top, right, bottom, width, height, RECT)
     """
     rect = wintypes.RECT()
     if _GetClientRect(hWnd, ctypes.byref(rect)):
-        return rect.left, rect.top, rect.right, rect.bottom, rect.right - rect.left, rect.bottom - rect.top
+        return rect.left, rect.top, rect.right, rect.bottom, rect.right - rect.left, rect.bottom - rect.top, rect
 
     return None
 
@@ -992,6 +999,32 @@ def GetMessage(lpMsg: Any, hWnd: int | None, wMsgFilterMin: int, wMsgFilterMax: 
     # which raises on 0.
     # We'll just return the result directly as it's tri-state.
     return GetMessageW(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getscrollinfo
+# BOOL GetScrollInfo(
+#   [in]      HWND         hwnd,
+#   [in]      int          nBar,
+#   [in, out] LPSCROLLINFO lpsi
+# );
+_GetScrollInfo = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND,
+    ctypes.c_int,
+    ctypes.POINTER(SCROLLINFO)
+)(
+    ('GetScrollInfo', user32),
+    (
+        (IN, "hwnd"),
+        (IN, "nBar"),
+        (INOUT, "lpsi"),
+    )
+)
+_GetScrollInfo.errcheck = errcheck_bool
+
+
+def GetScrollInfo(hwnd: int, nBar: int, lpsi: SCROLLINFO) -> bool:
+    return _GetScrollInfo(hwnd, nBar, ctypes.byref(lpsi))
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getsyscolor
@@ -1094,17 +1127,17 @@ _GetWindowRect = ctypes.WINFUNCTYPE(
 _GetWindowRect.errcheck = errcheck_bool
 
 
-def GetWindowRect(hWnd: int) -> tuple[int, int, int, int, int, int] | None:
+def GetWindowRect(hWnd: int) -> tuple[int, int, int, int, int, int, wintypes.RECT] | None:
     """
     Args:
         hWnd (int): A handle to the window whose window coordinates are to be retrieved.
 
     Returns:
-        tuple[int, int, int, int, int, int] | None: A tuple containing (left, top, right, bottom, width, height)
+        tuple[int, int, int, int, int, int, RECT] | None: A tuple containing (left, top, right, bottom, width, height, RECT)
     """
     rect = wintypes.RECT()
     if _GetWindowRect(hWnd, ctypes.byref(rect)):
-        return rect.left, rect.top, rect.right, rect.bottom, rect.right - rect.left, rect.bottom - rect.top
+        return rect.left, rect.top, rect.right, rect.bottom, rect.right - rect.left, rect.bottom - rect.top, rect
 
     return None
 
@@ -1129,11 +1162,6 @@ GetWindowTextW = ctypes.WINFUNCTYPE(
     )
 )
 
-
-def GetWindowText(hWnd: int, lpString: ctypes.Array, nMaxCount: int) -> int:
-    return call_with_last_error_check(GetWindowTextW, hWnd, lpString, nMaxCount)
-
-
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowtextlengthw
 # int GetWindowTextLengthW(
 #   [in] HWND hWnd
@@ -1149,8 +1177,21 @@ GetWindowTextLengthW = ctypes.WINFUNCTYPE(
 )
 
 
-def GetWindowTextLength(hWnd: int) -> int:
-    return call_with_last_error_check(GetWindowTextLengthW, hWnd)
+def GetWindowText(hWnd: int) -> str:
+    """
+    Copies the text of the specified window's title bar (if it has one) into a buffer.
+
+    Args:
+        hWnd (int): A handle to the window or control.
+
+    Returns:
+        str: The text of the window's title bar.
+    """
+    text_len = call_with_last_error_check(GetWindowTextLengthW, hWnd) + 1
+    text_buffer = ctypes.create_unicode_buffer(text_len)
+
+    call_with_last_error_check(GetWindowTextW, hWnd, text_buffer, text_len)
+    return text_buffer.value
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowthreadprocessid
@@ -1177,6 +1218,25 @@ def GetWindowThreadProcessId(hWnd: int) -> tuple[int, int]:
     if tid == 0:
         raise ctypes.WinError(ctypes.get_last_error())
     return tid, pid.value
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-hidecaret
+# BOOL HideCaret(
+#   [in, optional] HWND hWnd
+# );
+_HideCaret = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND
+)(
+    ('HideCaret', user32),
+    (
+        (IN, 'hWnd'),
+    )
+)
+
+
+def HideCaret(hWnd: int) -> bool:
+    return _HideCaret(hWnd)
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-invalidaterect
@@ -1581,6 +1641,20 @@ def RegisterClassEx(lpWndClassEx: WNDCLASSEX) -> int:
     )
 
 
+# BOOL ReleaseCapture();
+_ReleaseCapture = ctypes.WINFUNCTYPE(
+    wintypes.BOOL
+)(
+    ('ReleaseCapture', user32),
+    ()
+)
+_ReleaseCapture.errcheck = errcheck_bool
+
+
+def ReleaseCapture() -> bool:
+    return _ReleaseCapture()
+
+
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-releasedc
 # int ReleaseDC(
 #   [in] HWND hWnd,
@@ -1671,6 +1745,25 @@ _SetActiveWindow = ctypes.WINFUNCTYPE(
 
 def SetActiveWindow(hWnd: int) -> int:
     return call_with_last_error_check(_SetActiveWindow, hWnd)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setcapture
+# HWND SetCapture(
+#   [in] HWND hWnd
+# );
+_SetCapture = ctypes.WINFUNCTYPE(
+    wintypes.HWND,
+    wintypes.HWND
+)(
+    ('SetCapture', user32),
+    (
+        (IN, "hWnd"),
+    )
+)
+
+
+def SetCapture(hWnd: int) -> int:
+    return call_with_last_error_check(_SetCapture, hWnd)
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setfocus
@@ -1807,7 +1900,7 @@ else:
     SetWindowLongPtrW = SetWindowLongW
 
 
-def SetWindowLong(hWnd: int, nIndex: int, dwNewLong: int) -> int:
+def SetWindowLong(hWnd: int, nIndex: int, dwNewLong: Any) -> int:
     return call_with_last_error_check(SetWindowLongPtrW, hWnd, nIndex, dwNewLong)
 
 
@@ -1910,6 +2003,32 @@ SetWindowTextW.errcheck = errcheck_bool
 
 def SetWindowText(hWnd: int, lpString: str) -> bool:
     return SetWindowTextW(hWnd, lpString)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showscrollbar
+# BOOL ShowScrollBar(
+#   [in] HWND hWnd,
+#   [in] int  wBar,
+#   [in] BOOL bShow
+# );
+_ShowScrollBar = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HWND,
+    ctypes.c_int,
+    wintypes.BOOL
+)(
+    ('ShowScrollBar', user32),
+    (
+        (IN, "hWnd"),
+        (IN, "wBar"),
+        (IN, "bShow"),
+    )
+)
+_ShowScrollBar.errcheck = errcheck_bool
+
+
+def ShowScrollBar(hWnd: int, wBar: int, bShow: bool) -> bool:
+    return _ShowScrollBar(hWnd, wBar, bShow)
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow

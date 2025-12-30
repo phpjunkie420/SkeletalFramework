@@ -1,9 +1,12 @@
-import ctypes
 from ctypes import wintypes
 from enum import IntEnum
+
 import win32con
 
-from win32_skeletal_framework.win32_bindings.dispatcher import Dispatcher
+from skeletal_framework.core_context import CoreContext
+from skeletal_framework.dispatcher import Dispatcher
+from skeletal_framework.win32_bindings.gdi32 import *
+from skeletal_framework.win32_bindings.user32 import *
 
 __all__ = ['Style', 'Label']
 
@@ -52,21 +55,19 @@ class Label:
             return
 
         RegisterClassEx(
-            ctypes.byref(
-                WNDCLASSEX(
-                    style = win32con.CS_HREDRAW | win32con.CS_VREDRAW,
-                    lpfnWndProc = Dispatcher,
-                    hInstance = h_instance,
-                    hCursor = LoadCursor(0, win32con.IDC_ARROW),
-                    hbrBackground = 0,
-                    lpszClassName = cls._class_name
-                )
+            WNDCLASSEX(
+                style = win32con.CS_HREDRAW | win32con.CS_VREDRAW,
+                lpfnWndProc = Dispatcher,
+                hInstance = h_instance,
+                hCursor = LoadCursor(0, win32con.IDC_ARROW),
+                hbrBackground = 0,
+                lpszClassName = cls._class_name
             )
         )
         cls._class_registered = True
 
     @staticmethod
-    def _create_font(font_name: str, font_size: int) -> wintypes.HFONT:
+    def _create_font(font_name: str, font_size: int) -> int:
         """Helper method to create a LOGFONT structure."""
         return CreateFontIndirect(
             LOGFONT(
@@ -91,23 +92,24 @@ class Label:
             return 1
 
         elif msg == win32con.WM_PAINT:
-            rect = wintypes.RECT()
-
             ps, hdc = BeginPaint(hwnd)
-            GetClientRect(hwnd, ctypes.byref(rect))
+            *_, rect = GetClientRect(hwnd)
 
-            text_len = GetWindowTextLength(hwnd) + 1
-            text_buffer = ctypes.create_unicode_buffer(text_len)
-            GetWindowText(hwnd, text_buffer, text_len)
+            text = GetWindowText(hwnd)
 
-            bg_brush = GetSysColorBrush(win32con.COLOR_BTNFACE)
-            FillRect(hdc, ctypes.byref(rect), bg_brush)
+            bg_brush = CreateSolidBrush(
+                wintypes.RGB(
+                    red = 75, green = 75, blue = 75
+                )
+            )
+            FillRect(hdc, rect, bg_brush)
 
             SetBkMode(hdc, win32con.TRANSPARENT)
 
             old_font = SelectObject(hdc, self._font)
+            SetTextColor(hdc, wintypes.RGB(255, 255, 255))
             DrawText(
-                hdc, text_buffer.value, -1, ctypes.byref(rect),
+                hdc, text, -1, rect,
                 win32con.DT_SINGLELINE | win32con.DT_VCENTER | self._style
             )
 

@@ -8,7 +8,7 @@ import win32con
 from PIL import Image, ImageWin
 
 from skeletal_framework.core_context import CoreContext
-from skeletal_framework.win32_bindings.dispatcher import Dispatcher
+from skeletal_framework.dispatcher import Dispatcher
 from skeletal_framework.win32_bindings.gdi32 import CreateSolidBrush, CreatePen, DeleteObject, SelectObject, MoveToEx, LineTo, SetBkMode, SetTextColor, LOGFONT, CreateFontIndirect
 from skeletal_framework.win32_bindings.user32 import GetClientRect, CreateWindowEx, ShowWindow, UpdateWindow, RegisterClassEx, WNDCLASSEX, LoadCursor, BeginPaint, EndPaint, FillRect, DestroyWindow, GetSysColorBrush, DefWindowProc, DrawText
 from skeletal_framework.win32_bindings.macros import adjust_rgb
@@ -35,9 +35,8 @@ class Header:
         # Register the window class if not already registered
         self._register_window_class(h_instance = self._core_context.h_instance)
 
-        rect = wintypes.RECT()
-        GetClientRect(self._core_context.main_window, ctypes.byref(rect))
-        width = rect.right - rect.left
+        *_, width, _, _ = GetClientRect(self._core_context.main_window)
+        self._width = width
 
         # Create the window
         self.hwnd = CreateWindowEx(
@@ -87,15 +86,13 @@ class Header:
             return
 
         RegisterClassEx(
-            ctypes.byref(
-                WNDCLASSEX(
-                    style = win32con.CS_HREDRAW | win32con.CS_VREDRAW,
-                    lpfnWndProc = Dispatcher,
-                    hInstance = h_instance,
-                    hCursor = LoadCursor(0, win32con.IDC_ARROW),
-                    hbrBackground = GetSysColorBrush(win32con.BLACK_BRUSH),
-                    lpszClassName = cls._class_name
-                )
+            WNDCLASSEX(
+                style = win32con.CS_HREDRAW | win32con.CS_VREDRAW,
+                lpfnWndProc = Dispatcher,
+                hInstance = h_instance,
+                hCursor = LoadCursor(0, win32con.IDC_ARROW),
+                hbrBackground = GetSysColorBrush(win32con.BLACK_BRUSH),
+                lpszClassName = cls._class_name
             )
         )
         cls._class_registered = True
@@ -110,12 +107,9 @@ class Header:
             ps, hdc = BeginPaint(hwnd)
 
             if instance:
-                # Call the instance's paint method
-                # noinspection PyProtectedMember
-
-                instance._draw_sunken_area(hdc, 0, 0, instance._core_context.width, 66)
+                instance._draw_sunken_area(hdc, 0, 0, instance._width, 66)
                 instance._draw_left_image(hdc, 3, 3, instance._flip_left)
-                instance._draw_right_image(hdc, instance._core_context.width - 63, 3, instance._flip_right)
+                instance._draw_right_image(hdc, instance._width - 63, 3, instance._flip_right)
                 instance._draw_text(hdc, ps.rcPaint)
 
             EndPaint(hwnd, ps)
@@ -139,17 +133,16 @@ class Header:
 
     @staticmethod
     def _draw_sunken_area(hdc, x, y, width, height):
-        def create_pen(base_color_rgb: tuple[int, int, int], scale_factor: float) -> wintypes.HPEN:
+        def create_pen(base_color_rgb: tuple[int, int, int], scale_factor: float) -> int:
             r, g, b = base_color_rgb
 
             new_r, new_g, new_b = adjust_rgb(r, g, b, scale_factor)
 
             return CreatePen(win32con.PS_SOLID, 1, wintypes.RGB(new_r, new_g, new_b))
 
-        sunken_area_rect = wintypes.RECT(x + 2, y + 2, x + width - 2, y + height - 2)
         white_brush = CreateSolidBrush(wintypes.RGB(255, 255, 255))
 
-        FillRect(hdc, ctypes.byref(sunken_area_rect), white_brush)
+        FillRect(hdc, (x + 2, y + 2, x + width - 2, y + height - 2), white_brush)
         DeleteObject(white_brush)
 
         # Use the new helper to create 1-pixel-wide pens
@@ -256,7 +249,7 @@ class Header:
             hdc,
             self._text,
             -1,
-            ctypes.byref(text_rect),
+            text_rect,
             win32con.DT_VCENTER | win32con.DT_CENTER | win32con.DT_SINGLELINE  # Added SINGLELINE
         )
 
