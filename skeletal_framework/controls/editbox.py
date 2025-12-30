@@ -16,13 +16,8 @@ from skeletal_framework.win32_bindings.user32 import (
     CreateWindowEx, DefWindowProc, DestroyWindow, RegisterClass,
     LoadCursor, InvalidateRect, GetClientRect, PostMessage,
     SetWindowLong, CallWindowProc, SendMessage, SetWindowText, GetWindowLong,
-    GetScrollInfo
+    GetScrollInfo, ShowScrollBar
 )
-
-# Define ShowScrollBar locally to avoid modifying user32.py
-_ShowScrollBar = ctypes.windll.user32.ShowScrollBar
-_ShowScrollBar.argtypes = [wintypes.HWND, ctypes.c_int, wintypes.BOOL]
-_ShowScrollBar.restype = wintypes.BOOL
 
 
 class CustomEditBox:
@@ -121,7 +116,7 @@ class CustomEditBox:
             hInstance=self._h_instance,
             lpParam=None
         )
-        _ShowScrollBar(hwnd, win32con.SB_VERT, False)
+        ShowScrollBar(hwnd, win32con.SB_VERT, False)
         return hwnd
 
     def _create_scrollbar(self):
