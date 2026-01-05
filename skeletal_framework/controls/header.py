@@ -35,8 +35,9 @@ class Header:
         # Register the window class if not already registered
         self._register_window_class(h_instance = self._core_context.h_instance)
 
-        *_, width, _, _ = GetClientRect(self._core_context.main_window)
-        self._width = width
+        rect = wintypes.RECT()
+        GetClientRect(self._core_context.main_window, rect)
+        self._width = rect.right - rect.left
 
         # Create the window
         self.hwnd = CreateWindowEx(
@@ -44,7 +45,7 @@ class Header:
             lpClassName = self._class_name,
             lpWindowName = "Title Panel",
             dwStyle = win32con.WS_CHILD,
-            x = 0, y = 0, nWidth = width, nHeight = 66,
+            x = 0, y = 0, nWidth = self._width, nHeight = 66,
             hWndParent = self._core_context.main_window,
             hMenu = None,
             hInstance = self._core_context.h_instance,
@@ -65,7 +66,7 @@ class Header:
 
             self._image = self._image.resize((width, height), Image.Resampling.LANCZOS)
 
-        self._display_image = Image.new("RGB", (60, 60), (255, 255, 255))
+        self._display_image = Image.new("RGB", (60, 60), (60, 60, 60))
         self._display_image.paste(im = self._image, box = paste_position, mask = self._image.split()[3])
 
         self._text = text
@@ -140,13 +141,14 @@ class Header:
 
             return CreatePen(win32con.PS_SOLID, 1, wintypes.RGB(new_r, new_g, new_b))
 
-        white_brush = CreateSolidBrush(wintypes.RGB(255, 255, 255))
+        sunken_area_rect = wintypes.RECT(x + 2, y + 2, x + width - 2, y + height - 2)
+        white_brush = CreateSolidBrush(wintypes.RGB(60, 60, 60))
 
-        FillRect(hdc, (x + 2, y + 2, x + width - 2, y + height - 2), white_brush)
+        FillRect(hdc, sunken_area_rect, white_brush)
         DeleteObject(white_brush)
 
         # Use the new helper to create 1-pixel-wide pens
-        base_color = (240, 240, 240)
+        base_color = (75, 75, 75)
         dark_pen = create_pen(base_color, scale_factor = 0.70)
         darker_pen = create_pen(base_color, scale_factor = 0.50)
         light_pen = create_pen(base_color, scale_factor = 1.026)
@@ -192,7 +194,7 @@ class Header:
 
         # Inner right edge
         MoveToEx(hdc, x + width - 2, y + 1, None)
-        LineTo(hdc, x + width - 2, y + height - 2)
+        LineTo(hdc, x + width - 2, y + height - 1)
 
         SelectObject(hdc, old_pen)
 
@@ -243,7 +245,7 @@ class Header:
         old_font = SelectObject(hdc, h_font)
 
         SetBkMode(hdc, win32con.TRANSPARENT)
-        SetTextColor(hdc, wintypes.RGB(0, 0, 0))
+        SetTextColor(hdc, wintypes.RGB(255, 0, 0))
 
         DrawText(
             hdc,

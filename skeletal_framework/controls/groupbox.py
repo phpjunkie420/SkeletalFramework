@@ -127,7 +127,7 @@ class GroupBox:
                     gap_start, self.y - 1,
                     gap_width, self.y + 1
                 )
-                FillRect(hdc, ctypes.byref(fill_rect), bg_brush)
+                FillRect(hdc, fill_rect, bg_brush)
 
             finally:
                 SelectObject(hdc, old_brush)

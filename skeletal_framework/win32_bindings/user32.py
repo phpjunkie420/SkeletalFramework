@@ -733,7 +733,7 @@ def DrawFrameControl(hdc: int, lprc: wintypes.RECT, uType: int, uState: int) -> 
 #   [in]      UINT    format
 # );
 DrawTextW = ctypes.WINFUNCTYPE(
-    ctypes.c_int,
+    wintypes.BOOL,
     wintypes.HDC,
     wintypes.LPCWSTR,
     ctypes.c_int,
@@ -751,14 +751,10 @@ DrawTextW = ctypes.WINFUNCTYPE(
 )
 
 
-def DrawText(hdc: int, lpString: str, nCount: int, lpRect: tuple[int, int, int, int] | wintypes.RECT, uFormat: int) -> int:
-    if isinstance(lpRect, tuple):
-        lpRect = wintypes.RECT(*lpRect)
-
+def DrawText(hdc: int, lpString: str, nCount: int, lpRect: wintypes.RECT, uFormat: int) -> None:
     ret = DrawTextW(hdc, lpString, nCount, ctypes.byref(lpRect), uFormat)
     if ret == 0:
         raise ctypes.WinError(ctypes.get_last_error())
-    return ret
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enablemenuitem
@@ -782,12 +778,12 @@ _EnableMenuItem = ctypes.WINFUNCTYPE(
 )
 
 
-def EnableMenuItem(hMenu: int, uIDEnableItem: int, uEnable: int) -> bool:
+def EnableMenuItem(hMenu: int, uIDEnableItem: int, uEnable: int) -> int:
     # Returns previous state or -1 on failure
     ret = _EnableMenuItem(hMenu, uIDEnableItem, uEnable)
     if ret == -1:
         raise ctypes.WinError(ctypes.get_last_error())
-    return True
+    return ret
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enablewindow
@@ -806,10 +802,13 @@ _EnableWindow = ctypes.WINFUNCTYPE(
         (IN, "bEnable"),
     )
 )
+_EnableWindow.errcheck = errcheck_bool
 
 
-def EnableWindow(hWnd: int, bEnable: bool) -> bool:
-    return _EnableWindow(hWnd, bEnable)
+def EnableWindow(hWnd: int, bEnable: bool) -> None:
+    ret = _EnableWindow(hWnd, bEnable)
+    if ret == 0:
+        raise ctypes.WinError(ctypes.get_last_error())
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-endpaint
@@ -828,6 +827,7 @@ _EndPaint = ctypes.WINFUNCTYPE(
         (IN, "lpPaint"),
     )
 )
+_EndPaint.errcheck = errcheck_bool
 
 
 def EndPaint(hwnd: int, ps: PAINTSTRUCT):
@@ -841,7 +841,7 @@ def EndPaint(hwnd: int, ps: PAINTSTRUCT):
 #   [in] HBRUSH     hbr
 # );
 _FillRect = ctypes.WINFUNCTYPE(
-    wintypes.INT,
+    wintypes.BOOL,
     wintypes.HDC,
     wintypes.LPRECT,
     wintypes.HBRUSH
@@ -853,16 +853,13 @@ _FillRect = ctypes.WINFUNCTYPE(
         (IN, "hbr"),
     )
 )
+_FillRect.errcheck = errcheck_bool
 
 
-def FillRect(hDC: int, lprc: tuple[int, int, int, int] | wintypes.RECT, hbr: int) -> int:
-    if isinstance(lprc, tuple):
-        lprc = wintypes.RECT(*lprc)
-
+def FillRect(hDC: int, lprc: wintypes.RECT, hbr: int) -> None:
     ret = _FillRect(hDC, ctypes.byref(lprc), hbr)
     if ret == 0:
         raise ctypes.WinError(ctypes.get_last_error())
-    return ret
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-framerect
@@ -872,7 +869,7 @@ def FillRect(hDC: int, lprc: tuple[int, int, int, int] | wintypes.RECT, hbr: int
 #   [in] HBRUSH     hbr
 # );
 _FrameRect = ctypes.WINFUNCTYPE(
-    wintypes.INT,
+    wintypes.BOOL,
     wintypes.HDC,
     wintypes.LPRECT,
     wintypes.HBRUSH
@@ -884,13 +881,13 @@ _FrameRect = ctypes.WINFUNCTYPE(
         (IN, "hbr"),
     )
 )
+_FrameRect.errcheck = errcheck_bool
 
 
-def FrameRect(hDC: int, lprc: wintypes.RECT, hbr: int) -> int:
+def FrameRect(hDC: int, lprc: wintypes.RECT, hbr: int) -> None:
     ret = _FrameRect(hDC, ctypes.byref(lprc), hbr)
     if ret == 0:
         raise ctypes.WinError(ctypes.get_last_error())
-    return ret
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getclientrect
@@ -912,19 +909,11 @@ _GetClientRect = ctypes.WINFUNCTYPE(
 _GetClientRect.errcheck = errcheck_bool
 
 
-def GetClientRect(hWnd: int) -> tuple[int, int, int, int, int, int, wintypes.RECT] | None:
-    """
-    Args:
-        hWnd (int): A handle to the window whose client coordinates are to be retrieved.
-
-    Returns:
-        tuple[int, int, int, int, int, int, RECT] | None: A tuple containing (left, top, right, bottom, width, height, RECT)
-    """
-    rect = wintypes.RECT()
-    if _GetClientRect(hWnd, ctypes.byref(rect)):
-        return rect.left, rect.top, rect.right, rect.bottom, rect.right - rect.left, rect.bottom - rect.top, rect
-
-    return None
+def GetClientRect(hWnd: int, lpRect: wintypes.RECT) -> bool:
+    ret = _GetClientRect(hWnd, ctypes.byref(lpRect))
+    if ret == 0:
+        raise ctypes.WinError(ctypes.get_last_error())
+    return ret
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getcursorpos
@@ -943,10 +932,8 @@ _GetCursorPos = ctypes.WINFUNCTYPE(
 _GetCursorPos.errcheck = errcheck_bool
 
 
-def GetCursorPos() -> tuple[int, int]:
-    pt = wintypes.POINT()
-    _GetCursorPos(ctypes.byref(pt))
-    return pt.x, pt.y
+def GetCursorPos(lpPoint: wintypes.POINT) -> bool:
+    return _GetCursorPos(ctypes.byref(lpPoint))
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdc
@@ -1127,19 +1114,8 @@ _GetWindowRect = ctypes.WINFUNCTYPE(
 _GetWindowRect.errcheck = errcheck_bool
 
 
-def GetWindowRect(hWnd: int) -> tuple[int, int, int, int, int, int, wintypes.RECT] | None:
-    """
-    Args:
-        hWnd (int): A handle to the window whose window coordinates are to be retrieved.
-
-    Returns:
-        tuple[int, int, int, int, int, int, RECT] | None: A tuple containing (left, top, right, bottom, width, height, RECT)
-    """
-    rect = wintypes.RECT()
-    if _GetWindowRect(hWnd, ctypes.byref(rect)):
-        return rect.left, rect.top, rect.right, rect.bottom, rect.right - rect.left, rect.bottom - rect.top, rect
-
-    return None
+def GetWindowRect(hWnd: int, lpRect: wintypes.RECT) -> bool:
+    return _GetWindowRect(hWnd, ctypes.byref(lpRect))
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowtextw
@@ -1697,6 +1673,7 @@ _ScreenToClient.errcheck = errcheck_bool
 
 
 def ScreenToClient(hWnd: int, lpPoint: wintypes.POINT) -> bool:
+    GetCursorPos(lpPoint)
     return _ScreenToClient(hWnd, ctypes.byref(lpPoint))
 
 

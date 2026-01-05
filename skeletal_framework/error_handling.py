@@ -1,7 +1,17 @@
 import ctypes
+import sys
+import threading
+from traceback import format_exception
 from ctypes import wintypes
+from datetime import datetime
 from pathlib import Path
+from threading import Thread, ExceptHookArgs
+from typing import Type
+from typing import Optional
+from types import TracebackType
 
+
+import rich
 import win32con
 
 from skeletal_framework.controls.editbox import CustomEditBox
@@ -14,33 +24,30 @@ from skeletal_framework.win32_bindings.kernel32 import GetModuleHandle
 from skeletal_framework.win32_bindings.macros import hiword, loword
 from skeletal_framework.win32_bindings.monitor_info import GetMonitorInfo, MonitorFromPoint
 from skeletal_framework.win32_bindings.user32 import *
-from skeletal_framework.win32_bindings.uxtheme import SetWindowTheme
 
 
 class ExceptionHandlerDialog:
     _ID_EDITBOX = 1000
 
-    def __init__(self):
+    def __init__(self, exc_type: Type[BaseException], log_text: str):
         self._core_context = CoreContext()
 
         self._class_name = 'ExceptionHandlerDialogClass'
-        self._window_name = 'Exception Handler'
+        self._window_name = 'Application has crashed . . .'
+
+        self._exception_name = exc_type.__name__
+        self._log_text = '\r\n'.join(log_text.splitlines())
 
         self._hbr_background = CreateSolidBrush(
             color = wintypes.RGB(
-                red = 75, green = 75, blue = 75
+                red = 50, green = 50, blue = 50
             )
         )
 
         self._width = 800
-        self._height = 600
+        self._height = 500
 
         self._edit_box: CustomEditBox | None = None
-        self._hbr_edit_background = CreateSolidBrush(
-            color = wintypes.RGB(
-                red = 75, green = 75, blue = 75
-            )
-        )
         self._h_instance = GetModuleHandle(None)
 
         self._atom = self._register_class()
@@ -65,15 +72,6 @@ class ExceptionHandlerDialog:
                 if notification_code == win32con.EN_SETFOCUS:
                     HideCaret(lparam)
 
-        elif msg == win32con.WM_CTLCOLORSTATIC:
-            hdc = wparam
-            # Set text color to white
-            SetTextColor(hdc, wintypes.RGB(200, 0, 0))
-            # Set background color of the text to dark gray
-            SetBkColor(hdc, wintypes.RGB(75, 75, 75))
-            # Return the brush handle for the control background
-            return self._hbr_edit_background
-
         elif msg == win32con.WM_CLOSE:
             pass
 
@@ -87,80 +85,18 @@ class ExceptionHandlerDialog:
     def create_controls(self):
         rootpath = Path(__file__).parent.parent
         Header(
-            text = InterruptedError.__name__,
-            image_path = rootpath / r'images\python.png',
+            text = self._exception_name,
+            image_path = rootpath / r'images\Exception.png',
         )
 
         self._edit_box = CustomEditBox(
             10, 76, self._width - 20, self._height - 86,
-            text = 'This is a read-only info box.\r\n'
-                   'It has custom colors.\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
-                   'some text\r\n'
+            text = self._log_text,
+            font_name = 'Helvetica',
+            font_size = 12,
+            bg_color = wintypes.RGB(50, 50, 50),
+            text_color = wintypes.RGB(red = 255, green = 0, blue = 0),
         )
-
-        SetWindowTheme(self._edit_box.hwnd, "DarkMode_Explorer", None)
-
-        # CreateWindowEx(
-        #     dwExStyle = 0,
-        #     lpClassName = 'EDIT',
-        #     lpWindowName = 'This is a read-only info box.\r\nIt has custom colors.',
-        #     dwStyle = (
-        #             win32con.WS_CHILD
-        #             | win32con.WS_VISIBLE
-        #             | win32con.ES_MULTILINE
-        #             | win32con.ES_AUTOVSCROLL
-        #             | win32con.WS_VSCROLL
-        #             | win32con.ES_READONLY
-        #     ),
-        #     x = 10, y = 76,
-        #     nWidth = self._width - 20, nHeight = self._height - 86,
-        #     hWndParent = self._core_context.main_window,
-        #     hMenu = self._ID_EDITBOX,
-        #     hInstance = self._h_instance,
-        #     lpParam = None
-        # )
 
     def _create_window(self):
         return CreateWindowEx(
@@ -190,14 +126,16 @@ class ExceptionHandlerDialog:
     def invalidate_geometry(self):
         hwnd = self._core_context.main_window
 
-        *_, width, height, _ = GetClientRect(hwnd)
+        rect = wintypes.RECT()
+        GetClientRect(hwnd, rect)
+        width, height = rect.right - rect.left, rect.bottom - rect.top
 
         width_adjustment = self._width - width
         height_adjustment = self._height - height
 
         if width_adjustment > 0 or height_adjustment > 0:
-            *_, width, height, _ = GetWindowRect(hwnd)
-            current_width, current_height = width, height
+            GetWindowRect(hwnd, rect)
+            current_width, current_height = rect.right - rect.left, rect.bottom - rect.top
 
             width, height = current_width + width_adjustment, current_height + height_adjustment
 
@@ -229,7 +167,7 @@ class ExceptionHandlerDialog:
         DwmSetWindowAttribute(
             hwnd = hwnd,
             dwAttribute = DWMWINDOWATTRIBUTE.DWMWA_CAPTION_COLOR,
-            pvAttribute = wintypes.RGB(50, 50, 50)
+            pvAttribute = wintypes.RGB(25, 25, 25)
         )
 
         ShowWindow(hwnd, win32con.SW_SHOW)
@@ -240,7 +178,52 @@ class ExceptionHandlerDialog:
             TranslateMessage(msg)
             DispatchMessage(msg)
 
+    @classmethod
+    def system_exception_hook(cls, exc_type: Type[BaseException], exc_value: BaseException, exc_traceback: TracebackType) -> None:
+        cls._format_exception(exc_type, exc_value, exc_traceback)
 
-if __name__ == '__main__':
-    dialog = ExceptionHandlerDialog()
-    dialog.show_window()
+    @classmethod
+    def threading_exception_hook(cls, args: ExceptHookArgs) -> None:
+        exc_type, exc_value, exc_traceback, exc_thread = args
+
+        cls._format_exception(exc_type, exc_value, exc_traceback, exc_thread)
+
+    @classmethod
+    def _format_exception(cls, exc_type: Type[BaseException], exc_value: BaseException, exc_traceback: TracebackType, exc_thread: Thread | None = None) -> None:
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+            return
+
+        traceback = format_exception(exc_type, exc_value, exc_traceback)
+        if exc_thread is not None:
+            traceback.insert(0, f'Exception occurred in thread: {exc_thread.name!r}\n')
+        traceback = ''.join(traceback)
+
+        cls._log_exception(text = traceback)
+        cls(
+            exc_type = exc_type,
+            log_text = traceback
+        ).show_window()
+
+    @staticmethod
+    def _log_exception(
+            text: str
+    ) -> None:
+        """Handle uncaught exceptions by logging to file and displaying dialog."""
+
+        rootpath = Path(__file__).parent.parent
+        crash_reports = rootpath / 'crash_reports'
+        crash_reports.mkdir(parents = True, exist_ok = True)
+
+        # Create a log file with a timestamp
+        now = datetime.now()
+        log_file = crash_reports / f'{now.strftime('%m-%d-%Y %H.%M.%S')}.log'
+        log_file.write_text(text, encoding = 'utf-8')
+        rich.console.Console(highlight = False, style = 'red').print(log_file.read_text())
+
+    @classmethod
+    def install_exception_handlers(cls, main_class_name: str = "Application"):
+        """Install the custom exception handler."""
+        cls._main_class_name = main_class_name
+        sys.excepthook = cls.system_exception_hook
+        threading.excepthook = cls.threading_exception_hook

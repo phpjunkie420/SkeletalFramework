@@ -102,20 +102,24 @@ class AbstractDialogWindow:
         )
 
     def invalidate_geometry(self):
-        *_, width, height = GetClientRect(self._core_context.main_window)
+        hwnd = self._core_context.main_window
+
+        rect = wintypes.RECT()
+        GetClientRect(hwnd, rect)
+        width, height = rect.right - rect.left, rect.bottom - rect.top
 
         width_adjustment = self._width - width
         height_adjustment = self._height - height
 
         if width_adjustment > 0 or height_adjustment > 0:
-            *_, width, height = GetWindowRect(self._core_context.main_window)
-            current_width, current_height = width, height
+            GetWindowRect(hwnd, rect)
+            current_width, current_height = rect.right - rect.left, rect.bottom - rect.top
 
             width, height = current_width + width_adjustment, current_height + height_adjustment
 
             monitor = GetMonitorInfo(MonitorFromPoint(0, 0))
             SetWindowPos(
-                self._core_context.main_window, 0,
+                hwnd, 0,
                 (monitor.width - width) // 2, (monitor.height - height) // 2,
                 width, height,
                 win32con.SWP_NOZORDER | win32con.SWP_NOACTIVATE

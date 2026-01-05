@@ -16,7 +16,7 @@ __all__ = [
     'FrameRgn',
     'LineTo',
     'MoveToEx',
-    'Rectangle', 'RoundRect',
+    'Rectangle', 'RoundRect', 'Polygon',
     'SelectClipRgn', 'SelectObject', 'SetBkColor', 'SetBkMode', 'SetDIBits', 'SetPixel', 'SetTextColor',
     'BITMAPINFOHEADER', 'BITMAPINFO', 'GRADIENT_RECT', 'LOGFONT', 'TRIVERTEX',
 ]
@@ -716,6 +716,39 @@ _Rectangle.errcheck = errcheck_bool
 
 def Rectangle(hdc: int, left: int, top: int, right: int, bottom: int) -> bool:
     return _Rectangle(hdc, left, top, right, bottom)
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-polygon
+# BOOL Polygon(
+#   [in] HDC         hdc,
+#   [in] const POINT *apt,
+#   [in] int         cpt
+# );
+_Polygon = ctypes.WINFUNCTYPE(
+    wintypes.BOOL,
+    wintypes.HDC,
+    ctypes.POINTER(wintypes.POINT),
+    ctypes.c_int
+)(
+    ('Polygon', gdi32),
+    (
+        (IN, "hdc"),
+        (IN, "apt"),
+        (IN, "cpt"),
+    )
+)
+_Polygon.errcheck = errcheck_bool
+
+
+def Polygon(hdc: int, points: list[wintypes.POINT]) -> bool:
+    """
+    Draws a polygon consisting of two or more vertices connected by straight lines.
+    The polygon is outlined by using the current pen and filled by using the current brush.
+    """
+    count = len(points)
+    array_type = wintypes.POINT * count
+    point_array = array_type(*points)
+    return _Polygon(hdc, point_array, count)
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-roundrect
