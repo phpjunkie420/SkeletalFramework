@@ -240,11 +240,12 @@ class Header:
             self._draw_image(hdc, self._side_canvas, x, y, flip)
 
     def _draw_center_image(self, hdc, x, y):
-        if self._center_canvas:
+        if hasattr(self, '_center_canvas') and self._center_canvas:
             self._draw_image(hdc, self._center_canvas, x, y)
 
-    def _draw_image(self, hdc, image, x, y, flip = False) -> None:
-        if self._side_canvas:
+    @staticmethod
+    def _draw_image(hdc, image, x, y, flip = False) -> None:
+        if image:
             try:
                 img_width, img_height = image.size
 
