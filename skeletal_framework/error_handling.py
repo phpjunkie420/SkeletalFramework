@@ -7,7 +7,6 @@ from datetime import datetime
 from pathlib import Path
 from threading import Thread, ExceptHookArgs
 from typing import Type
-from typing import Optional
 from types import TracebackType
 
 
@@ -45,7 +44,7 @@ class ExceptionHandlerDialog:
         )
 
         self._width = 800
-        self._height = 500
+        self._height = 600
 
         self._edit_box: CustomEditBox | None = None
         self._h_instance = GetModuleHandle(None)
@@ -86,11 +85,17 @@ class ExceptionHandlerDialog:
         rootpath = Path(__file__).parent.parent
         Header(
             text = self._exception_name,
-            image_path = rootpath / r'images\Exception.png',
+            side_image_path = rootpath / r'images\exception_hand.png',
+            center_image_path = rootpath / r'images\exception_face.png',
+            flip_right_image = True,
+            edge_length = 125,
+            scale_factors = (0.90, 0.70, 1.285, 1.3),
+            text_color = wintypes.RGB(red = 255, green = 0, blue = 0),
+            bg_color = wintypes.RGB(60, 60, 60)
         )
 
         self._edit_box = CustomEditBox(
-            10, 76, self._width - 20, self._height - 86,
+            10, 145, self._width - 20, self._height - 155,
             text = self._log_text,
             font_name = 'Helvetica',
             font_size = 12,

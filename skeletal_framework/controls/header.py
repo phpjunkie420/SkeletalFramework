@@ -11,7 +11,7 @@ from skeletal_framework.core_context import CoreContext
 from skeletal_framework.dispatcher import Dispatcher
 from skeletal_framework.win32_bindings.gdi32 import CreateSolidBrush, CreatePen, DeleteObject, SelectObject, MoveToEx, LineTo, SetBkMode, SetTextColor, LOGFONT, CreateFontIndirect
 from skeletal_framework.win32_bindings.user32 import GetClientRect, CreateWindowEx, ShowWindow, UpdateWindow, RegisterClassEx, WNDCLASSEX, LoadCursor, BeginPaint, EndPaint, FillRect, DestroyWindow, GetSysColorBrush, DefWindowProc, DrawText
-from skeletal_framework.win32_bindings.macros import adjust_rgb
+from skeletal_framework.win32_bindings.macros import adjust_rgb, get_rgb
 
 # Dictionary to store instances by window handle
 _image_panel_instances = {}
@@ -26,11 +26,26 @@ class Header:
     _class_registered = False
     _class_name = "TitlePanelClass"
 
-    def __init__(self, text: str, image_path: Path, flip_left: bool = False, flip_right: bool = False):
+    def __init__(
+            self, text: str,
+            *,
+            side_image_path: Path,
+            center_image_path: Path | None = None,
+            edge_length: int = 60,
+            text_color: int = wintypes.RGB(0, 0, 0),
+            bg_color: int = wintypes.RGB(255, 255, 255),
+            scale_factors: tuple[float, float, float, float] = (0.60, 0.40, 1.076, 1.091),
+            flip_left_image: bool = False,
+            flip_right_image: bool = False,
+    ):
         self._core_context: CoreContext = CoreContext()
 
-        self._flip_left = flip_left
-        self._flip_right = flip_right
+        self._edge_length = edge_length
+        self._text_color = text_color
+        self._bg_color = bg_color
+        self._scale_factors = scale_factors
+        self._flip_left_image = flip_left_image
+        self._flip_right_image = flip_right_image
 
         # Register the window class if not already registered
         self._register_window_class(h_instance = self._core_context.h_instance)
@@ -45,7 +60,7 @@ class Header:
             lpClassName = self._class_name,
             lpWindowName = "Title Panel",
             dwStyle = win32con.WS_CHILD,
-            x = 0, y = 0, nWidth = self._width, nHeight = 66,
+            x = 0, y = 0, nWidth = self._width, nHeight = self._edge_length + 6,
             hWndParent = self._core_context.main_window,
             hMenu = None,
             hInstance = self._core_context.h_instance,
@@ -53,28 +68,39 @@ class Header:
         )
 
         paste_position = (0, 0)
-        self._image: Optional[Image.Image] = Image.open(image_path)
-        if self._image.size != (60, 60):
-            if self._image.width == self._image.height:
-                width, height = (60, 60)
-            elif self._image.width > self._image.height:
-                width, height = (60, int(self._image.height * 60 / self._image.width))
-                paste_position = (0, (60 - height) // 2)
+        self._side_image: Optional[Image.Image] = Image.open(side_image_path)
+        if self._side_image.size != (self._edge_length, self._edge_length):
+            if self._side_image.width == self._side_image.height:
+                width, height = (self._edge_length, self._edge_length)
+            elif self._side_image.width > self._side_image.height:
+                width, height = (self._edge_length, int(self._side_image.height * self._edge_length / self._side_image.width))
+                paste_position = (0, (self._edge_length - height) // 2)
             else:
-                width, height = (int(self._image.width * 60 / self._image.height), 60)
-                paste_position = ((60 - width) // 2, 0)
+                width, height = (int(self._side_image.width * self._edge_length / self._side_image.height), self._edge_length)
+                paste_position = ((self._edge_length - width) // 2, 0)
 
-            self._image = self._image.resize((width, height), Image.Resampling.LANCZOS)
+            self._side_image = self._side_image.resize((width, height), Image.Resampling.LANCZOS)
 
-        self._display_image = Image.new("RGB", (60, 60), (60, 60, 60))
-        self._display_image.paste(im = self._image, box = paste_position, mask = self._image.split()[3])
+        self._side_canvas = Image.new("RGB", (self._edge_length, self._edge_length), get_rgb(self._bg_color))
+        self._side_canvas.paste(im = self._side_image, box = paste_position, mask = self._side_image.split()[3])
+
+        self._center_image: Image.Image | None = None
+        if center_image_path is not None:
+            self._center_image: Optional[Image.Image] = Image.open(center_image_path)
+            width, height = int(self._side_image.width * self._edge_length / self._side_image.height), self._edge_length
+
+            self._center_image = self._center_image.resize((width, height), Image.Resampling.LANCZOS)
+
+            self._center_canvas = Image.new("RGB", (self._width - (self._edge_length * 2) - 6, self._edge_length), get_rgb(self._bg_color))
+            paste_position = ((self._center_canvas.width - width) // 2, 0)
+            self._center_canvas.paste(im = self._center_image, box = paste_position, mask = self._center_image.split()[3])
 
         self._text = text
 
         _image_panel_instances[self.hwnd] = self
 
         # Create background brush
-        self.background_brush = CreateSolidBrush(wintypes.RGB(255, 255, 255))
+        # self.background_brush = CreateSolidBrush(wintypes.RGB(255, 255, 255))
 
         UpdateWindow(self.hwnd)
         ShowWindow(self.hwnd, win32con.SW_SHOW)
@@ -108,9 +134,10 @@ class Header:
             ps, hdc = BeginPaint(hwnd)
 
             if instance:
-                instance._draw_sunken_area(hdc, 0, 0, instance._width, 66)
-                instance._draw_left_image(hdc, 3, 3, instance._flip_left)
-                instance._draw_right_image(hdc, instance._width - 63, 3, instance._flip_right)
+                instance._draw_sunken_area(hdc, 0, 0, instance._width, instance._edge_length + 6)
+                instance._draw_left_image(hdc, 3, 3, instance._flip_left_image)
+                instance._draw_right_image(hdc, instance._width - instance._edge_length - 3, 3, instance._flip_right_image)
+                instance._draw_center_image(hdc, instance._edge_length + 3, 3)
                 instance._draw_text(hdc, ps.rcPaint)
 
             EndPaint(hwnd, ps)
@@ -119,11 +146,11 @@ class Header:
         elif msg == win32con.WM_DESTROY:
             # Clean up when the window is destroyed
             if instance:
-                instance._display_image.close()
-                instance._display_image = None
+                instance._side_canvas.close()
+                instance._side_canvas = None
 
-                instance._image.close()
-                instance._image = None
+                instance._side_image.close()
+                instance._side_image = None
 
                 # Remove from dictionary
                 if hwnd in _image_panel_instances:
@@ -132,8 +159,7 @@ class Header:
 
         return DefWindowProc(hwnd, msg, wparam, lparam)
 
-    @staticmethod
-    def _draw_sunken_area(hdc, x, y, width, height):
+    def _draw_sunken_area(self, hdc, x, y, width, height):
         def create_pen(base_color_rgb: tuple[int, int, int], scale_factor: float) -> int:
             r, g, b = base_color_rgb
 
@@ -142,17 +168,18 @@ class Header:
             return CreatePen(win32con.PS_SOLID, 1, wintypes.RGB(new_r, new_g, new_b))
 
         sunken_area_rect = wintypes.RECT(x + 2, y + 2, x + width - 2, y + height - 2)
-        white_brush = CreateSolidBrush(wintypes.RGB(60, 60, 60))
+        white_brush = CreateSolidBrush(self._bg_color)
 
         FillRect(hdc, sunken_area_rect, white_brush)
         DeleteObject(white_brush)
 
+        dark_factor, darker_factor, light_factor, lighter_factor = self._scale_factors
         # Use the new helper to create 1-pixel-wide pens
-        base_color = (75, 75, 75)
-        dark_pen = create_pen(base_color, scale_factor = 0.70)
-        darker_pen = create_pen(base_color, scale_factor = 0.50)
-        light_pen = create_pen(base_color, scale_factor = 1.026)
-        lighter_pen = create_pen(base_color, scale_factor = 1.041)
+        base_color = get_rgb(self._bg_color)
+        dark_pen = create_pen(base_color, scale_factor = dark_factor)
+        darker_pen = create_pen(base_color, scale_factor = darker_factor)
+        light_pen = create_pen(base_color, scale_factor = light_factor)
+        lighter_pen = create_pen(base_color, scale_factor = lighter_factor)
 
         # --- Outer Border ---
         old_pen = SelectObject(hdc, dark_pen)
@@ -205,16 +232,20 @@ class Header:
         DeleteObject(light_pen)
 
     def _draw_left_image(self, hdc, x, y, flip) -> None:
-        self._draw_image(hdc, x, y, flip)
+        if self._side_canvas:
+            self._draw_image(hdc, self._side_canvas, x, y, flip)
 
     def _draw_right_image(self, hdc, x, y, flip) -> None:
-        self._draw_image(hdc, x, y, flip)
+        if self._side_canvas:
+            self._draw_image(hdc, self._side_canvas, x, y, flip)
 
-    def _draw_image(self, hdc, x, y, flip) -> None:
-        if self._display_image:
+    def _draw_center_image(self, hdc, x, y):
+        if self._center_canvas:
+            self._draw_image(hdc, self._center_canvas, x, y)
+
+    def _draw_image(self, hdc, image, x, y, flip = False) -> None:
+        if self._side_canvas:
             try:
-                image = self._display_image
-
                 img_width, img_height = image.size
 
                 if flip:
@@ -228,9 +259,9 @@ class Header:
 
     def _draw_text(self, hdc, rect: wintypes.RECT) -> None:
         text_rect = wintypes.RECT(
-            rect.left + 63,
+            rect.left + self._edge_length + 3,
             rect.top,
-            rect.right - 63,
+            rect.right - self._edge_length - 3,
             rect.bottom
         )
 
@@ -245,7 +276,7 @@ class Header:
         old_font = SelectObject(hdc, h_font)
 
         SetBkMode(hdc, win32con.TRANSPARENT)
-        SetTextColor(hdc, wintypes.RGB(255, 0, 0))
+        SetTextColor(hdc, self._text_color)
 
         DrawText(
             hdc,
@@ -261,6 +292,6 @@ class Header:
     def destroy(self) -> None:
         """Destroy the panel window."""
         if self.hwnd:
-            DeleteObject(self.background_brush)
+            # DeleteObject(self.background_brush)
             DestroyWindow(self.hwnd)
             self.hwnd = None
