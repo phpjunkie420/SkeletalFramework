@@ -5,7 +5,6 @@ import win32con
 from skeletal_framework.core_context import CoreContext
 from skeletal_framework.controls.custom_scrollbar import CustomScrollBar
 from skeletal_framework.dispatcher import Dispatcher
-# Added CreateFont to imports
 from skeletal_framework.win32_bindings.gdi32 import (
     CreateSolidBrush, DeleteObject, SetTextColor, SetBkColor, CreateFont
 )
@@ -133,8 +132,10 @@ class CustomEditBox:
                 | win32con.WS_VISIBLE
                 | win32con.ES_MULTILINE
                 | win32con.ES_AUTOVSCROLL
+                | win32con.ES_AUTOHSCROLL
                 | win32con.ES_READONLY
                 | win32con.WS_VSCROLL
+                | win32con.WS_HSCROLL
                 | win32con.WS_CLIPSIBLINGS
         )
 

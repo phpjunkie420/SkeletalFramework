@@ -10,7 +10,7 @@ https://learn.microsoft.com/en-us/windows/win32/api/winuser/
 import ctypes
 from ctypes import wintypes
 from collections.abc import Callable
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from skeletal_framework.win32_bindings.errcheck import errcheck_bool, errcheck_zero, call_with_last_error_check
 
@@ -32,7 +32,7 @@ __all__ = [
     'PostMessage', 'PostQuitMessage', 'PtInRect',
     'RedrawWindow', 'RegisterClass', 'RegisterClassEx', 'ReleaseCapture', 'ReleaseDC',
     'ScreenToClient', 'SetActiveWindow', 'SetCapture', 'SetFocus', 'SetProcessDPIAware', 'SetScrollInfo',
-    'SetTimer', 'SendMessage', 'SetWindowLong', 'SetWindowPos', 'SetWindowRgn', 'SetWindowText', 'ShowScrollBar', 'ShowWindow',
+    'SetTimer', 'SendMessage', 'SetWindowLong', 'SetWindowPos', 'SetWindowRgn', 'SetWindowText', 'ShowScrollBar', 'ShowWindow', 'SwitchToThisWindow',
     'TranslateMessage', 'TrackMouseEvent',
     'UnregisterClass', 'UpdateWindow',
     'WNDPROC',
@@ -219,36 +219,49 @@ class MINMAXINFO(ctypes.Structure):
         self.ptMaxTrackSize = ptMaxTrackSize
 
 
-# typedef struct tagNMHDR {
-#   HWND     hwndFrom;
-#   UINT_PTR idFrom;
-#   UINT     code;
-# } NMHDR;
-class NMHDR(ctypes.Structure):
-    _fields_ = [
-        ('hwndFrom', wintypes.HWND),
-        ('idFrom', ctypes.c_size_t),
-        ('code', wintypes.INT),
-    ]
+if TYPE_CHECKING:
+    class NMHDR(ctypes.Structure):
+        hwndFrom: int
+        idFrom: int
+        code: int
 
+    class PAINTSTRUCT(ctypes.Structure):
+        hdc: int
+        fErase: bool
+        rcPaint: wintypes.RECT
+        fRestore: bool
+        fIncUpdate: bool
+        rgbReserved: ctypes.Array[ctypes.c_byte]
+else:
+    # typedef struct tagNMHDR {
+    #   HWND     hwndFrom;
+    #   UINT_PTR idFrom;
+    #   UINT     code;
+    # } NMHDR;
+    class NMHDR(ctypes.Structure):
+        _fields_ = [
+            ('hwndFrom', wintypes.HWND),
+            ('idFrom', ctypes.c_size_t),
+            ('code', wintypes.INT),
+        ]
 
-# typedef struct tagPAINTSTRUCT {
-#   HDC  hdc;
-#   BOOL fErase;
-#   RECT rcPaint;
-#   BOOL fRestore;
-#   BOOL fIncUpdate;
-#   BYTE rgbReserved[32];
-# } PAINTSTRUCT, *PPAINTSTRUCT, *NPPAINTSTRUCT, *LPPAINTSTRUCT;
-class PAINTSTRUCT(ctypes.Structure):
-    _fields_ = [
-        ("hdc", wintypes.HDC),
-        ("fErase", wintypes.BOOL),
-        ("rcPaint", wintypes.RECT),
-        ("fRestore", wintypes.BOOL),
-        ("fIncUpdate", wintypes.BOOL),
-        ("rgbReserved", (ctypes.c_byte * 32))
-    ]
+    # typedef struct tagPAINTSTRUCT {
+    #   HDC  hdc;
+    #   BOOL fErase;
+    #   RECT rcPaint;
+    #   BOOL fRestore;
+    #   BOOL fIncUpdate;
+    #   BYTE rgbReserved[32];
+    # } PAINTSTRUCT, *PPAINTSTRUCT, *NPPAINTSTRUCT, *LPPAINTSTRUCT;
+    class PAINTSTRUCT(ctypes.Structure):
+        _fields_ = [
+            ("hdc", wintypes.HDC),
+            ("fErase", wintypes.BOOL),
+            ("rcPaint", wintypes.RECT),
+            ("fRestore", wintypes.BOOL),
+            ("fIncUpdate", wintypes.BOOL),
+            ("rgbReserved", (ctypes.c_byte * 32))
+        ]
 
 
 # typedef struct tagSCROLLINFO {
@@ -926,7 +939,7 @@ _GetCursorPos = ctypes.WINFUNCTYPE(
 )(
     ('GetCursorPos', user32),
     (
-        (INOUT, "lpPoint"),
+        (OUT, "lpPoint"),
     )
 )
 _GetCursorPos.errcheck = errcheck_bool
@@ -1108,7 +1121,7 @@ _GetWindowRect = ctypes.WINFUNCTYPE(
     ('GetWindowRect', user32),
     (
         (IN, "hWnd"),
-        (INOUT, "lpRect"),
+        (IN, "lpRect"),
     )
 )
 _GetWindowRect.errcheck = errcheck_bool
@@ -1125,7 +1138,7 @@ def GetWindowRect(hWnd: int, lpRect: wintypes.RECT) -> bool:
 #   [in]  int    nMaxCount
 # );
 GetWindowTextW = ctypes.WINFUNCTYPE(
-    wintypes.INT,
+    wintypes.BOOL,
     wintypes.HWND,
     wintypes.LPWSTR,
     wintypes.INT
@@ -1133,7 +1146,7 @@ GetWindowTextW = ctypes.WINFUNCTYPE(
     ('GetWindowTextW', user32),
     (
         (IN, "hWnd"),
-        (INOUT, "lpString"),
+        (IN, "lpString"),
         (IN, "nMaxCount"),
     )
 )
@@ -2028,6 +2041,27 @@ _ShowWindow = ctypes.WINFUNCTYPE(
 
 def ShowWindow(hWnd: int, nCmdShow: int) -> bool:
     return _ShowWindow(hWnd, nCmdShow)
+
+
+# VOID SwitchToThisWindow(
+#   [in] HWND hwnd,
+#   [in] BOOL fUnknown
+# );
+_SwitchToThisWindow = ctypes.WINFUNCTYPE(
+    None,
+    wintypes.HWND,
+    wintypes.BOOL
+)(
+    ('SwitchToThisWindow', user32),
+    (
+        (IN, "hwnd"),
+        (IN, "fUnknown"),
+    )
+)
+
+
+def SwitchToThisWindow(hwnd: int, alt_tab: bool) -> None:
+    _SwitchToThisWindow(hwnd = hwnd, fUnknown = alt_tab)
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-trackmouseevent

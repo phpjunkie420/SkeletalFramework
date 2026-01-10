@@ -2,14 +2,34 @@ import os
 import sys
 import winreg
 from collections.abc import Generator
+from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 __all__ = [
     'RegistryKey',
 ]
 
 RegValueType = tuple[str, str | int | bytes | list, int]
+
+
+@dataclass
+class RegistryValue:
+    name: str
+    value: Any
+    type: int  # e.g., winreg.REG_SZ, winreg.REG_DWORD
+
+    @property
+    def raw(self) -> tuple[str, Any, int]:
+        """Returns the legacy tuple format expected by some winreg functions."""
+        return self.name, self.value, self.type
+
+    @property
+    def type_str(self) -> str:
+        """Debug helper to see the type name (e.g., 'REG_SZ')."""
+        # Create a reverse lookup map for winreg constants
+        types = {v: k for k, v in vars(winreg).items() if k.startswith('REG_')}
+        return types.get(self.type, "UNKNOWN")
 
 
 class RegistryMeta(type):
@@ -37,6 +57,11 @@ class RegistryMeta(type):
 
 class RegistryKey(metaclass = RegistryMeta):
     if TYPE_CHECKING:
+        # These are "Type Stubs".
+        # This block is for Static Analysis (PyCharm/VS Code) only.
+        # Python ignores them at runtime (because TYPE_CHECKING is False).
+        # It resolves type mismatches and suppresses false-positive IDE warnings.
+        # PyCharm/VS Code reads them and overrides their inference.
         HKEY_CURRENT_USER: RegistryKey
         HKEY_LOCAL_MACHINE: RegistryKey
         HKEY_CLASSES_ROOT: RegistryKey
@@ -94,32 +119,57 @@ class RegistryKey(metaclass = RegistryMeta):
             hkey = self._hkey, path = new_path
         )
 
-    def get_value(self, value_name) -> str | int | None:
-        """Reads a value from the registry key."""
+    def get_value(self, value_name: str) -> RegistryValue | None:
+        """Reads a value and returns a typed RegistryValue object."""
         try:
             with winreg.OpenKey(self._hkey, self._path) as key:
-                regvalue, regtype = winreg.QueryValueEx(key, value_name)
-                if isinstance(regvalue, str):
-                    return os.path.expandvars(regvalue)
+                # QueryValueEx returns (value_data, type_int)
+                data, reg_type = winreg.QueryValueEx(key, value_name)
 
-                return regvalue
+                # OPTIONAL: You can still choose to expand env vars here
+                # or leave it raw. Usually, returning raw is safer for a wrapper class.
+                if reg_type == winreg.REG_EXPAND_SZ and isinstance(data, str):
+                    data = os.path.expandvars(data)
+
+                return RegistryValue(name = value_name, value = data, type = reg_type)
         except FileNotFoundError:
             return None
 
-    def set_value(self, value_name, value_data):
-        """Sets a value on the key, creating the key if it does not exist."""
-        # Infer the registry type from the Python data type
-        if isinstance(value_data, str):
-            value_type = winreg.REG_EXPAND_SZ
-            value_data = self._with_env_vars(value_data)
-        elif isinstance(value_data, int):
-            value_type = winreg.REG_DWORD
-        else:
-            raise TypeError(f"Unsupported data type for registry value: {type(value_data)}")
+    def set_value(self, name_or_obj: str | RegistryValue, value_data: Any = None, value_type: int = None):
+        """
+        Sets a registry value.
+        Usage A (Explicit): set_value(RegistryValue("Key", 1, winreg.REG_DWORD))
+        Usage B (Manual):   set_value("Key", 1, winreg.REG_DWORD)
+        Usage C (Infer):    set_value("Key", 1) # Guesses REG_DWORD
+        """
 
-        # Use CreateKeyEx to ensure the key exists and open it with write access.
+        # Logic to normalize inputs
+        if isinstance(name_or_obj, RegistryValue):
+            name = name_or_obj.name
+            data = name_or_obj.value
+            reg_type = name_or_obj.type
+        else:
+            name = name_or_obj
+            data = value_data
+
+            # If type is provided explicitly, use it. Otherwise, guess.
+            if value_type is not None:
+                reg_type = value_type
+            else:
+                # Your original guessing logic goes here
+                if isinstance(data, int):
+                    reg_type = winreg.REG_DWORD
+                elif isinstance(data, str):
+                    reg_type = winreg.REG_SZ  # Default to SZ, not EXPAND_SZ unless requested
+                else:
+                    raise TypeError("Cannot infer registry type. Please specify 'value_type'.")
+
+        # Handle formatting (like your _with_env_vars) logic here
+        if reg_type == winreg.REG_EXPAND_SZ and isinstance(data, str):
+            data = self._with_env_vars(data)
+
         with winreg.CreateKeyEx(self._hkey, self._path, 0, winreg.KEY_WRITE) as key:
-            winreg.SetValueEx(key, value_name, 0, value_type, value_data)
+            winreg.SetValueEx(key, name, 0, reg_type, data)
 
     def delete_value(self, value_name):
         """Deletes a value from the key."""
