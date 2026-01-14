@@ -1,8 +1,7 @@
 import ctypes
 from typing import TYPE_CHECKING
-from comtypes import GUID, COMMETHOD, DISPMETHOD, HRESULT, dispid
+from comtypes import GUID, COMMETHOD, DISPMETHOD, HRESULT, dispid, POINTER
 from comtypes.automation import IDispatch, BSTR
-
 
 if TYPE_CHECKING:
     # Type aliases for clarity
@@ -20,30 +19,30 @@ class IWshShortcut(IDispatch):
     _iid_ = GUID("{F935DC23-1CF0-11D0-ADB9-00C04FD58A0B}")
     _idlflags_ = ['dual', 'oleautomation']
     _methods_ = [
-        COMMETHOD([dispid(0), 'propget'], HRESULT, 'FullName', (['out', 'retval'], ctypes.POINTER(BSTR), 'out_FullName')),
+        COMMETHOD([dispid(0), 'propget'], HRESULT, 'FullName', (['out', 'retval'], POINTER(BSTR), 'out_FullName')),
 
-        COMMETHOD([dispid(1000), 'propget'], HRESULT, 'Arguments', (['out', 'retval'], ctypes.POINTER(BSTR), 'out_Arguments')),
+        COMMETHOD([dispid(1000), 'propget'], HRESULT, 'Arguments', (['out', 'retval'], POINTER(BSTR), 'out_Arguments')),
         COMMETHOD([dispid(1000), 'propput'], HRESULT, 'Arguments', (['in'], BSTR, 'out_Arguments')),
 
-        COMMETHOD([dispid(1001), 'propget'], HRESULT, 'Description', (['out', 'retval'], ctypes.POINTER(BSTR), 'out_Description')),
+        COMMETHOD([dispid(1001), 'propget'], HRESULT, 'Description', (['out', 'retval'], POINTER(BSTR), 'out_Description')),
         COMMETHOD([dispid(1001), 'propput'], HRESULT, 'Description', (['in'], BSTR, 'out_Description')),
 
-        COMMETHOD([dispid(1002), 'propget'], HRESULT, 'Hotkey', (['out', 'retval'], ctypes.POINTER(BSTR), 'out_HotKey')),
+        COMMETHOD([dispid(1002), 'propget'], HRESULT, 'Hotkey', (['out', 'retval'], POINTER(BSTR), 'out_HotKey')),
         COMMETHOD([dispid(1002), 'propput'], HRESULT, 'Hotkey', (['in'], BSTR, 'out_HotKey')),
 
-        COMMETHOD([dispid(1003), 'propget'], HRESULT, 'IconLocation', (['out', 'retval'], ctypes.POINTER(BSTR), 'out_IconPath')),
+        COMMETHOD([dispid(1003), 'propget'], HRESULT, 'IconLocation', (['out', 'retval'], POINTER(BSTR), 'out_IconPath')),
         COMMETHOD([dispid(1003), 'propput'], HRESULT, 'IconLocation', (['in'], BSTR, 'out_IconPath')),
 
         COMMETHOD([dispid(1004), 'propput'], HRESULT, 'RelativePath', (['in'], BSTR, 'rhs')),
         # Note: propget for RelativePath is often skipped or hidden in some versions, but the setter is distinct. We can skip defining the getter if unused.
 
-        COMMETHOD([dispid(1005), 'propget'], HRESULT, 'TargetPath', (['out', 'retval'], ctypes.POINTER(BSTR), 'out_Path')),
+        COMMETHOD([dispid(1005), 'propget'], HRESULT, 'TargetPath', (['out', 'retval'], POINTER(BSTR), 'out_Path')),
         COMMETHOD([dispid(1005), 'propput'], HRESULT, 'TargetPath', (['in'], BSTR, 'out_Path')),
 
-        COMMETHOD([dispid(1006), 'propget'], HRESULT, 'WindowStyle', (['out', 'retval'], ctypes.POINTER(ctypes.c_int), 'out_ShowCmd')),
+        COMMETHOD([dispid(1006), 'propget'], HRESULT, 'WindowStyle', (['out', 'retval'], POINTER(ctypes.c_int), 'out_ShowCmd')),
         COMMETHOD([dispid(1006), 'propput'], HRESULT, 'WindowStyle', (['in'], ctypes.c_int, 'out_ShowCmd')),
 
-        COMMETHOD([dispid(1007), 'propget'], HRESULT, 'WorkingDirectory', (['out', 'retval'], ctypes.POINTER(BSTR), 'out_WorkingDirectory')),
+        COMMETHOD([dispid(1007), 'propget'], HRESULT, 'WorkingDirectory', (['out', 'retval'], POINTER(BSTR), 'out_WorkingDirectory')),
         COMMETHOD([dispid(1007), 'propput'], HRESULT, 'WorkingDirectory', (['in'], BSTR, 'out_WorkingDirectory')),
 
         COMMETHOD([dispid(2000), 'hidden'], HRESULT, 'Load', (['in'], BSTR, 'PathLink')),
@@ -63,6 +62,7 @@ class IWshShortcut(IDispatch):
         def Save(self): ...
 
 
+# noinspection GrazieInspection,SpellCheckingInspection
 class IWshShell3(IDispatch):
     """
     Interface for the main WScript.Shell object.
@@ -75,7 +75,7 @@ class IWshShell3(IDispatch):
         DISPMETHOD(
             [dispid(1002)], HRESULT, 'CreateShortcut',
             (['in'], BSTR, 'PathLink'),
-            (['out', 'retval'], ctypes.POINTER(ctypes.POINTER(IWshShortcut)), 'out_Shortcut')
+            (['out', 'retval'], POINTER(POINTER(IWshShortcut)), 'out_Shortcut')
         ),
     ]
 

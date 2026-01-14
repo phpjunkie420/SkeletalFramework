@@ -52,7 +52,7 @@ else:                                    # 32-bit
     ULONG_PTR = LONG_PTR = LRESULT = ctypes.c_long
 
 _WNDPROC = ctypes.WINFUNCTYPE(
-    ctypes.HRESULT,
+    LRESULT,
     wintypes.HWND,
     wintypes.UINT,
     wintypes.WPARAM,
