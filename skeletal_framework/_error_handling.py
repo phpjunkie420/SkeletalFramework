@@ -17,7 +17,7 @@ from skeletal_framework.controls.editbox import CustomEditBox
 from skeletal_framework.controls.header import Header
 from skeletal_framework.core_context import CoreContext
 from skeletal_framework.dispatcher import Dispatcher
-from skeletal_framework.win32_bindings.dwmapi import DwmSetWindowAttribute, DWMWINDOWATTRIBUTE
+from skeletal_framework.win32_bindings.dwmapi import DwmSetWindowAttribute, DWMWINDOWATTRIBUTE  # noqa
 from skeletal_framework.win32_bindings.gdi32 import *
 from skeletal_framework.win32_bindings.kernel32 import GetModuleHandle
 from skeletal_framework.win32_bindings.macros import hiword, loword
@@ -37,16 +37,22 @@ class ExceptionHandlerDialog:
         self._exception_name = exc_type.__name__
         self._log_text = '\r\n'.join(log_text.splitlines())
 
-        self._hbr_background = CreateSolidBrush(
-            color = wintypes.RGB(
-                red = 50, green = 50, blue = 50
-            )
-        )
+        self._hbr_background = GetSysColorBrush(win32con.COLOR_BTNFACE)
+        # self._hbr_background = CreateSolidBrush(
+        #     color = wintypes.RGB(
+        #         red = 50, green = 50, blue = 50
+        #     )
+        # )
 
         self._width = 800
         self._height = 600
 
-        self._edit_box: CustomEditBox | None = None
+        self.font_name = "Segoe UI"
+        self.font_size = 12
+
+        self._h_font = self._create_font()
+        self._header: Header | None = None
+        self._edit_box: int | None = None
         self._h_instance = GetModuleHandle(None)
 
         self._atom = self._register_class()
@@ -83,24 +89,79 @@ class ExceptionHandlerDialog:
 
     def create_controls(self):
         rootpath = Path(__file__).parent.parent
-        Header(
+        self._header = Header(
             text = self._exception_name,
             side_image_path = rootpath / r'images\exception_hand.png',
             center_image_path = rootpath / r'images\exception_face.png',
             flip_right_image = True,
             edge_length = 125,
-            scale_factors = (0.90, 0.70, 1.285, 1.3),
+            # scale_factors = (0.90, 0.70, 1.285, 1.3),
             text_color = wintypes.RGB(red = 255, green = 0, blue = 0),
-            bg_color = wintypes.RGB(60, 60, 60)
+            # bg_color = wintypes.RGB(60, 60, 60)
         )
 
-        self._edit_box = CustomEditBox(
-            10, 145, self._width - 20, self._height - 155,
-            text = self._log_text,
-            font_name = 'Helvetica',
-            font_size = 12,
-            bg_color = wintypes.RGB(50, 50, 50),
-            text_color = wintypes.RGB(red = 255, green = 0, blue = 0),
+        # self._edit_box = CustomEditBox(
+        #     10, 145, self._width - 20, self._height - 155,
+        #     text = self._log_text,
+        #     font_name = 'Helvetica',
+        #     font_size = 12,
+        #     bg_color = wintypes.RGB(50, 50, 50),
+        #     text_color = wintypes.RGB(red = 255, green = 0, blue = 0),
+        # )
+
+        style = (
+            win32con.WS_CHILD
+            | win32con.WS_VISIBLE
+            | win32con.WS_BORDER
+            | win32con.ES_LEFT
+            | win32con.ES_MULTILINE
+            | win32con. ES_AUTOVSCROLL
+            | win32con.WS_VSCROLL
+            | win32con.ES_AUTOHSCROLL
+            | win32con.WS_HSCROLL
+            | win32con.ES_READONLY
+            | win32con.WS_TABSTOP
+        )
+
+        self._edit_box = CreateWindowEx(
+            dwExStyle = 0,
+            lpClassName = "EDIT",
+            lpWindowName = self._log_text,
+            dwStyle = style,
+            x = 10, y = 145, nWidth = self._width - 20, nHeight = self._height - 155,
+            hWndParent = self._core_context.main_window,
+            hMenu = self._ID_EDITBOX,
+            hInstance = self._h_instance,
+            lpParam = None
+        )
+        SendMessage(
+            self._edit_box,
+            win32con.WM_SETFONT,
+            self._h_font,
+            True
+        )
+
+    def _create_font(self):
+        # Calculate height from point size.
+        # Formula: -MulDiv(PointSize, GetDeviceCaps(hDC, LOGPIXELSY), 72)
+        # Assuming 96 DPI for simplicity here: -int(size * 96 / 72) -> size * 1.333
+        height = -int(self.font_size * 1.33333)
+
+        return CreateFont(
+            cHeight = height,
+            cWidth = 0,
+            cEscapement = 0,
+            cOrientation = 0,
+            cWeight = win32con.FW_NORMAL,
+            bItalic = 0,
+            bUnderline = 0,
+            bStrikeOut = 0,
+            iCharSet = win32con.DEFAULT_CHARSET,
+            iOutPrecision = win32con.OUT_DEFAULT_PRECIS,
+            iClipPrecision = win32con.CLIP_DEFAULT_PRECIS,
+            iQuality = win32con.CLEARTYPE_QUALITY,
+            iPitchAndFamily = win32con.DEFAULT_PITCH | win32con.FF_DONTCARE,
+            pszFaceName = self.font_name
         )
 
     def _create_window(self):
@@ -154,8 +215,16 @@ class ExceptionHandlerDialog:
 
     def destroy(self):
         if hasattr(self, '_hbr_background'):
-            DeleteObject(self._hbr_background)
+            if self._hbr_background:
+                DeleteObject(self._hbr_background)
+
             del self._hbr_background
+
+        if hasattr(self, '_bg_brush'):
+            if self._bg_brush is not None:
+                DeleteObject(self._bg_brush)
+
+            del self._bg_brush
 
         hwnd = self._core_context.main_window
 
@@ -169,11 +238,11 @@ class ExceptionHandlerDialog:
     def show_window(self):
         hwnd = self._core_context.main_window
 
-        DwmSetWindowAttribute(
-            hwnd = hwnd,
-            dwAttribute = DWMWINDOWATTRIBUTE.DWMWA_CAPTION_COLOR,
-            pvAttribute = wintypes.RGB(25, 25, 25)
-        )
+        # DwmSetWindowAttribute(
+        #     hwnd = hwnd,
+        #     dwAttribute = DWMWINDOWATTRIBUTE.DWMWA_CAPTION_COLOR,
+        #     pvAttribute = wintypes.RGB(25, 25, 25)
+        # )
 
         ShowWindow(hwnd, win32con.SW_SHOW)
         UpdateWindow(hwnd)

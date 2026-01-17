@@ -7,12 +7,15 @@ import win32con
 from skeletal_framework.win32_bindings.errcheck import errcheck_bool, call_with_last_error_check
 
 __all__ = [
+    'OBJ_PEN', 'OBJ_BRUSH', 'OBJ_DC', 'OBJ_METADC', 'OBJ_PAL', 'OBJ_FONT', 'OBJ_BITMAP', 'OBJ_REGION',
+    'OBJ_METAFILE', 'OBJ_MEMDC', 'OBJ_EXTPEN', 'OBJ_ENHMETADC', 'OBJ_ENHMETAFILE', 'OBJ_COLORSPACE',
+
     'BitBlt',
     'CreateBitmap', 'CreateCompatibleBitmap', 'CreateCompatibleDC', 'CreateDIBSection', 'CreateFont', 'CreateFontIndirect',
     'CreatePen', 'CreateRoundRectRgn', 'CreateSolidBrush',
     'DeleteDC', 'DeleteObject',
     'Ellipse', 'ExtTextOut',
-    'GetStockObject', 'GetTextExtentPoint32',
+    'GetObjectType', 'GetStockObject', 'GetTextExtentPoint32',
     'FrameRgn',
     'LineTo',
     'MoveToEx',
@@ -21,11 +24,28 @@ __all__ = [
     'BITMAPINFOHEADER', 'BITMAPINFO', 'GRADIENT_RECT', 'LOGFONT', 'TRIVERTEX',
 ]
 
-IN = 1
-OUT = 2
-INOUT = 3
+# @formatter:off
+IN                  = 1
+OUT                 = 2
+INOUT               = 3
 
-gdi32 = ctypes.WinDLL('gdi32', use_last_error = True)
+OBJ_PEN             = 1
+OBJ_BRUSH           = 2
+OBJ_DC              = 3
+OBJ_METADC          = 4
+OBJ_PAL             = 5
+OBJ_FONT            = 6
+OBJ_BITMAP          = 7
+OBJ_REGION          = 8
+OBJ_METAFILE        = 9
+OBJ_MEMDC           = 10
+OBJ_EXTPEN          = 11
+OBJ_ENHMETADC       = 12
+OBJ_ENHMETAFILE     = 13
+OBJ_COLORSPACE      = 14
+# @formatter:on
+
+GDI32 = ctypes.WinDLL('gdi32', use_last_error = True)
 _dc_objects = weakref.WeakValueDictionary()
 
 
@@ -186,7 +206,7 @@ _BitBlt = ctypes.WINFUNCTYPE(
     ctypes.c_int,
     wintypes.DWORD
 )(
-    ('BitBlt', gdi32),
+    ('BitBlt', GDI32),
     (
         (IN, "hdc"),
         (IN, "x"),
@@ -222,7 +242,7 @@ _CreateBitmap = ctypes.WINFUNCTYPE(
     ctypes.c_uint,
     ctypes.c_void_p
 )(
-    ('CreateBitmap', gdi32),
+    ('CreateBitmap', GDI32),
     (
         (IN, "nWidth"),
         (IN, "nHeight"),
@@ -249,7 +269,7 @@ _CreateCompatibleBitmap = ctypes.WINFUNCTYPE(
     ctypes.c_int,
     ctypes.c_int
 )(
-    ('CreateCompatibleBitmap', gdi32),
+    ('CreateCompatibleBitmap', GDI32),
     (
         (IN, "hdc"),
         (IN, "cx"),
@@ -270,7 +290,7 @@ _CreateCompatibleDC = ctypes.WINFUNCTYPE(
     wintypes.HDC,
     wintypes.HDC
 )(
-    ('CreateCompatibleDC', gdi32),
+    ('CreateCompatibleDC', GDI32),
     (
         (IN, "hdc"),
     )
@@ -299,20 +319,33 @@ _CreateDIBSection = ctypes.WINFUNCTYPE(
     wintypes.HANDLE,
     wintypes.DWORD
 )(
-    ('CreateDIBSection', gdi32),
+    ('CreateDIBSection', GDI32),
     (
         (IN, "hdc"),
         (IN, "pbmi"),
         (IN, "usage"),
-        (OUT, "ppvBits"),
+        (IN, "ppvBits"),
         (IN, "hSection"),
         (IN, "offset"),
     )
 )
 
 
-def CreateDIBSection(hdc: int, pbmi: BITMAPINFO, usage: int, ppvBits: ctypes.POINTER(wintypes.LPVOID), hSection: int, offset: int) -> int:
-    return call_with_last_error_check(_CreateDIBSection, hdc, ctypes.byref(pbmi), usage, ppvBits, hSection, offset)
+def CreateDIBSection(hdc: int, pbmi: BITMAPINFO, usage: int, hSection: int, offset: int) -> tuple[int, int]:
+    ppv_bits_container = wintypes.LPVOID()
+    hbitmap = call_with_last_error_check(
+        _CreateDIBSection,
+        hdc,
+        ctypes.byref(pbmi),
+        usage,
+        ctypes.byref(ppv_bits_container),
+        hSection,
+        offset
+    )
+
+    bits_address = ppv_bits_container.value
+
+    return hbitmap, bits_address
 
 
 # https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-createfontw
@@ -349,7 +382,7 @@ CreateFontW = ctypes.WINFUNCTYPE(
     wintypes.DWORD,
     wintypes.LPCWSTR,
 )(
-    ('CreateFontW', gdi32),
+    ('CreateFontW', GDI32),
     (
         (IN, "cHeight"),
         (IN, "cWidth"),
@@ -381,7 +414,7 @@ CreateFontIndirectW = ctypes.WINFUNCTYPE(
     wintypes.HFONT,
     ctypes.POINTER(LOGFONT)
 )(
-    ('CreateFontIndirectW', gdi32),
+    ('CreateFontIndirectW', GDI32),
     (
         (IN, "lplf"),
     )
@@ -404,7 +437,7 @@ _CreatePen = ctypes.WINFUNCTYPE(
     wintypes.INT,
     wintypes.COLORREF,
 )(
-    ('CreatePen', gdi32),
+    ('CreatePen', GDI32),
     (
         (IN, "iStyle"),
         (IN, "cWidth"),
@@ -425,7 +458,7 @@ _CreateSolidBrush = ctypes.WINFUNCTYPE(
     wintypes.HBRUSH,
     wintypes.COLORREF,
 )(
-    ('CreateSolidBrush', gdi32),
+    ('CreateSolidBrush', GDI32),
     (
         (IN, "color"),
     )
@@ -444,7 +477,7 @@ _DeleteDC = ctypes.WINFUNCTYPE(
     wintypes.BOOL,
     wintypes.HDC
 )(
-    ('DeleteDC', gdi32),
+    ('DeleteDC', GDI32),
     (
         (IN, "hdc"),
     )
@@ -464,7 +497,7 @@ _DeleteObject = ctypes.WINFUNCTYPE(
     wintypes.BOOL,
     wintypes.HGDIOBJ
 )(
-    ('DeleteObject', gdi32),
+    ('DeleteObject', GDI32),
     (
         (IN, "ho"),
     )
@@ -492,7 +525,7 @@ _Ellipse = ctypes.WINFUNCTYPE(
     ctypes.c_int,
     ctypes.c_int
 )(
-    ('Ellipse', gdi32),
+    ('Ellipse', GDI32),
     (
         (IN, "hdc"),
         (IN, "left"),
@@ -508,6 +541,22 @@ def Ellipse(hdc: int, left: int, top: int, right: int, bottom: int) -> bool:
     return _Ellipse(hdc, left, top, right, bottom)
 
 
+# https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-getobjecttype
+# DWORD GetObjectType(
+#   [in] HGDIOBJ h
+# );
+_GetObjectType = ctypes.WINFUNCTYPE(
+    wintypes.DWORD,
+    wintypes.HGDIOBJ
+)(
+    ('GetObjectType', GDI32),
+)
+
+
+def GetObjectType(h: int) -> int:
+    return _GetObjectType(h)
+
+
 # https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-getstockobject
 # HGDIOBJ GetStockObject(
 #   [in] int i
@@ -516,7 +565,7 @@ _GetStockObject = ctypes.WINFUNCTYPE(
     wintypes.HGDIOBJ,
     wintypes.INT
 )(
-    ('GetStockObject', gdi32),
+    ('GetStockObject', GDI32),
     (
         (IN, "i"),
     )
@@ -541,7 +590,7 @@ GetTextExtentPoint32W = ctypes.WINFUNCTYPE(
     ctypes.c_int,
     wintypes.LPSIZE
 )(
-    ('GetTextExtentPoint32W', gdi32),
+    ('GetTextExtentPoint32W', GDI32),
     (
         (IN, "hdc"),
         (IN, "lpString"),
@@ -578,7 +627,7 @@ ExtTextOutW = ctypes.WINFUNCTYPE(
     ctypes.c_int,
     ctypes.POINTER(wintypes.INT)
 )(
-    ('ExtTextOutW', gdi32),
+    ('ExtTextOutW', GDI32),
     (
         (IN, "hdc"),
         (IN, "x"),
@@ -613,7 +662,7 @@ _FrameRgn = ctypes.WINFUNCTYPE(
     ctypes.c_int,
     ctypes.c_int
 )(
-    ('FrameRgn', gdi32),
+    ('FrameRgn', GDI32),
     (
         (IN, "hdc"),
         (IN, "hrgn"),
@@ -641,7 +690,7 @@ _LineTo = ctypes.WINFUNCTYPE(
     wintypes.INT,
     wintypes.INT,
 )(
-    ('LineTo', gdi32),
+    ('LineTo', GDI32),
     (
         (IN, "hdc"),
         (IN, "x"),
@@ -670,7 +719,7 @@ _MoveToEx = ctypes.WINFUNCTYPE(
     wintypes.INT,
     ctypes.POINTER(wintypes.POINT),
 )(
-    ('MoveToEx', gdi32),
+    ('MoveToEx', GDI32),
     (
         (IN, "hdc"),
         (IN, "x"),
@@ -702,7 +751,7 @@ _Rectangle = ctypes.WINFUNCTYPE(
     ctypes.c_int,
     ctypes.c_int
 )(
-    ('Rectangle', gdi32),
+    ('Rectangle', GDI32),
     (
         (IN, "hdc"),
         (IN, "left"),
@@ -730,7 +779,7 @@ _Polygon = ctypes.WINFUNCTYPE(
     ctypes.POINTER(wintypes.POINT),
     ctypes.c_int
 )(
-    ('Polygon', gdi32),
+    ('Polygon', GDI32),
     (
         (IN, "hdc"),
         (IN, "apt"),
@@ -771,7 +820,7 @@ _RoundRect = ctypes.WINFUNCTYPE(
     ctypes.c_int,
     ctypes.c_int
 )(
-    ('RoundRect', gdi32),
+    ('RoundRect', GDI32),
     (
         (IN, "hdc"),
         (IN, "left"),
@@ -807,7 +856,7 @@ _CreateRoundRectRgn = ctypes.WINFUNCTYPE(
     ctypes.c_int,
     ctypes.c_int
 )(
-    ('CreateRoundRectRgn', gdi32),
+    ('CreateRoundRectRgn', GDI32),
     (
         (IN, "x1"),
         (IN, "y1"),
@@ -833,7 +882,7 @@ _SelectClipRgn = ctypes.WINFUNCTYPE(
     wintypes.HDC,
     wintypes.HRGN
 )(
-    ('SelectClipRgn', gdi32),
+    ('SelectClipRgn', GDI32),
     (
         (IN, "hdc"),
         (IN, "hrgn"),
@@ -858,7 +907,7 @@ _SelectObject = ctypes.WINFUNCTYPE(
     wintypes.HDC,
     wintypes.HGDIOBJ,
 )(
-    ('SelectObject', gdi32),
+    ('SelectObject', GDI32),
     (
         (IN, "hdc"),
         (IN, "h"),
@@ -886,7 +935,7 @@ _SetBkColor = ctypes.WINFUNCTYPE(
     wintypes.HDC,
     wintypes.COLORREF
 )(
-    ('SetBkColor', gdi32),
+    ('SetBkColor', GDI32),
     (
         (IN, "hdc"),
         (IN, "color"),
@@ -912,7 +961,7 @@ _SetBkMode = ctypes.WINFUNCTYPE(
     wintypes.HDC,
     ctypes.c_int,
 )(
-    ('SetBkMode', gdi32),
+    ('SetBkMode', GDI32),
     (
         (IN, "hdc"),
         (IN, "mode"),
@@ -944,7 +993,7 @@ _SetDIBits = ctypes.WINFUNCTYPE(
     ctypes.POINTER(BITMAPINFO),
     wintypes.UINT
 )(
-    ('SetDIBits', gdi32),
+    ('SetDIBits', GDI32),
     (
         (IN, "hdc"),
         (IN, "hbm"),
@@ -976,7 +1025,7 @@ _SetPixel = ctypes.WINFUNCTYPE(
     ctypes.c_int,
     wintypes.COLORREF
 )(
-    ('SetPixel', gdi32),
+    ('SetPixel', GDI32),
     (
         (IN, "hdc"),
         (IN, "x"),
@@ -1003,7 +1052,7 @@ _SetTextColor = ctypes.WINFUNCTYPE(
     wintypes.HDC,
     wintypes.COLORREF,
 )(
-    ('SetTextColor', gdi32),
+    ('SetTextColor', GDI32),
     (
         (IN, "hdc"),
         (IN, "color"),

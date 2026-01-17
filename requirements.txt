@@ -2,3 +2,5 @@ pywin32
 pillow
 rich
 comtypes
+psutil
+pyvda

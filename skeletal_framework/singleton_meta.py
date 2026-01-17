@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, ClassVar, TYPE_CHECKING
 
 
 class SingletonMeta(type):
@@ -12,3 +12,6 @@ class SingletonMeta(type):
     @property
     def instances(cls) -> dict[type, Any]:
         return cls._instances
+
+    if TYPE_CHECKING:
+        instances: ClassVar[dict[type, Any]]
