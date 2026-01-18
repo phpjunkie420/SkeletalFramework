@@ -23,6 +23,7 @@ from skeletal_framework.win32_bindings.kernel32 import GetModuleHandle
 from skeletal_framework.win32_bindings.macros import hiword, loword
 from skeletal_framework.win32_bindings.monitor_info import GetMonitorInfo, MonitorFromPoint
 from skeletal_framework.win32_bindings.user32 import *
+from skeletal_framework.resources import *
 
 
 class ExceptionHandlerDialog:
@@ -88,11 +89,10 @@ class ExceptionHandlerDialog:
         return DefWindowProc(hwnd, msg, wparam, lparam)
 
     def create_controls(self):
-        rootpath = Path(__file__).parent.parent
         self._header = Header(
             text = self._exception_name,
-            side_image_path = rootpath / r'images\exception_hand.png',
-            center_image_path = rootpath / r'images\exception_face.png',
+            side_image = EXCEPTION_HAND,
+            center_image = EXCEPTION_FACE,
             flip_right_image = True,
             edge_length = 125,
             # scale_factors = (0.90, 0.70, 1.285, 1.3),

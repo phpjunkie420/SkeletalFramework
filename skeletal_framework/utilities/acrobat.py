@@ -19,26 +19,24 @@ USER32 = ctypes.WinDLL('User32', use_last_error = True)
 
 
 def main():
-    for process in AppProcess.get_processes():
-        if process.name() == 'Acrobat.exe':
-            process.switch_to_this_window()
+    process = AppProcess.get_process_by_name(name = 'Acrobat.exe')
+    if process is not None:
+        process.switch_to_this_window()
 
-            monitor = GetMonitorInfo(
-                hMonitor = MonitorFromPoint(
-                    x = 0, y = 0
-                )
+        monitor = GetMonitorInfo(
+            hMonitor = MonitorFromPoint(
+                x = 0, y = 0
             )
+        )
 
-            left, top, right, bottom = process.get_window_rect()
-            width, height = 1040, monitor.height - 40
-
-            process.set_window_pos(
-                hwnd_insert_after = 0,
-                x = (monitor.width - width) // 2,
-                y = (monitor.height - height) // 2,
-                width = width, height = height,
-                flags = win32con.SWP_NOZORDER
-            )
+        width, height = 1040, monitor.height - 40
+        process.set_window_pos(
+            hwnd_insert_after = 0,
+            x = (monitor.width - width) // 2,
+            y = (monitor.height - height) // 2,
+            width = width, height = height,
+            flags = win32con.SWP_NOZORDER
+        )
 
 
 class AppProcess(psutil.Process, pyvda.AppView):

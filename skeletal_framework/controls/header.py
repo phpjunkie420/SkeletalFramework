@@ -1,11 +1,8 @@
-import ctypes
 from ctypes import wintypes
 
-from pathlib import Path
-from typing import Optional
-
 import win32con
-from PIL import Image, ImageWin
+from PIL import Image as PilImage, ImageWin
+from PIL.Image import Image
 
 from skeletal_framework.core_context import CoreContext
 from skeletal_framework.dispatcher import Dispatcher
@@ -13,24 +10,18 @@ from skeletal_framework.win32_bindings.gdi32 import CreateSolidBrush, CreatePen,
 from skeletal_framework.win32_bindings.user32 import GetClientRect, CreateWindowEx, ShowWindow, UpdateWindow, RegisterClassEx, WNDCLASSEX, LoadCursor, BeginPaint, EndPaint, FillRect, DestroyWindow, GetSysColorBrush, DefWindowProc, DrawText
 from skeletal_framework.win32_bindings.macros import adjust_rgb, get_rgb
 
-# Dictionary to store instances by window handle
 _image_panel_instances = {}
 
 
 class Header:
-    """A panel control class for displaying images in a PyWin32 window.
-
-    This panel automatically resizes the displayed image to fit the size of the panel.
-    Designed to be used as a child window within a main application window.
-    """
     _class_registered = False
     _class_name = "TitlePanelClass"
 
     def __init__(
             self, text: str,
             *,
-            side_image_path: Path,
-            center_image_path: Path | None = None,
+            side_image: Image,
+            center_image: Image | None = None,
             edge_length: int = 60,
             text_color: int = wintypes.RGB(0, 0, 0),
             bg_color: int = wintypes.RGB(255, 255, 255),
@@ -46,6 +37,8 @@ class Header:
         self._scale_factors = scale_factors
         self._flip_left_image = flip_left_image
         self._flip_right_image = flip_right_image
+        self._text = text
+        self._side_image = side_image  # Keep reference to original if needed, or rely on canvas
 
         # Register the window class if not already registered
         self._register_window_class(h_instance = self._core_context.h_instance)
@@ -67,43 +60,42 @@ class Header:
             lpParam = id(self)
         )
 
-        paste_position = (0, 0)
-        self._side_image: Optional[Image.Image] = Image.open(side_image_path)
-        if self._side_image.size != (self._edge_length, self._edge_length):
-            if self._side_image.width == self._side_image.height:
-                width, height = (self._edge_length, self._edge_length)
-            elif self._side_image.width > self._side_image.height:
-                width, height = (self._edge_length, int(self._side_image.height * self._edge_length / self._side_image.width))
-                paste_position = (0, (self._edge_length - height) // 2)
-            else:
-                width, height = (int(self._side_image.width * self._edge_length / self._side_image.height), self._edge_length)
-                paste_position = ((self._edge_length - width) // 2, 0)
+        self._side_canvas = self._create_fitted_canvas(
+            image = side_image,
+            width = self._edge_length,
+            height = self._edge_length,
+            bg_color = self._bg_color
+        )
 
-            self._side_image = self._side_image.resize((width, height), Image.Resampling.LANCZOS)
-
-        self._side_canvas = Image.new("RGB", (self._edge_length, self._edge_length), get_rgb(self._bg_color))
-        self._side_canvas.paste(im = self._side_image, box = paste_position, mask = self._side_image.split()[3])
-
-        self._center_image: Image.Image | None = None
-        if center_image_path is not None:
-            self._center_image: Optional[Image.Image] = Image.open(center_image_path)
-            width, height = int(self._side_image.width * self._edge_length / self._side_image.height), self._edge_length
-
-            self._center_image = self._center_image.resize((width, height), Image.Resampling.LANCZOS)
-
-            self._center_canvas = Image.new("RGB", (self._width - (self._edge_length * 2) - 6, self._edge_length), get_rgb(self._bg_color))
-            paste_position = ((self._center_canvas.width - width) // 2, 0)
-            self._center_canvas.paste(im = self._center_image, box = paste_position, mask = self._center_image.split()[3])
-
-        self._text = text
+        self._center_canvas: Image | None = None
+        if center_image:
+            center_canvas_width = self._width - (self._edge_length * 2) - 6
+            self._center_canvas = self._create_fitted_canvas(
+                image = center_image,
+                width = center_canvas_width,
+                height = self._edge_length,
+                bg_color = self._bg_color
+            )
 
         _image_panel_instances[self.hwnd] = self
 
-        # Create background brush
-        # self.background_brush = CreateSolidBrush(wintypes.RGB(255, 255, 255))
-
         UpdateWindow(self.hwnd)
         ShowWindow(self.hwnd, win32con.SW_SHOW)
+
+    @staticmethod
+    def _create_fitted_canvas(image: Image, width: int, height: int, bg_color: int) -> Image:
+        ratio = min(width / image.width, height / image.height)
+        new_size = (int(image.width * ratio), int(image.height * ratio))
+        resized_image = image.resize(new_size, PilImage.Resampling.LANCZOS)
+        mask = resized_image.split()[3] if 'A' in resized_image.getbands() else None
+
+        paste_x = (width - new_size[0]) // 2
+        paste_y = (height - new_size[1]) // 2
+
+        canvas = PilImage.new("RGB", (width, height), get_rgb(bg_color))
+        canvas.paste(resized_image, (paste_x, paste_y), mask)
+
+        return canvas
 
     @classmethod
     def _register_window_class(cls, h_instance) -> None:
@@ -250,7 +242,7 @@ class Header:
                 img_width, img_height = image.size
 
                 if flip:
-                    image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+                    image = image.transpose(PilImage.Transpose.FLIP_LEFT_RIGHT)
 
                 dib = ImageWin.Dib(image)
                 dib.draw(hdc, (x, y, x + img_width, y + img_height))
