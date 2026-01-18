@@ -1,5 +1,6 @@
 import base64
 import textwrap
+from pathlib import Path
 
 FILE_TEMPLATE = """
 from base64 import decodebytes
@@ -50,8 +51,10 @@ def encode_image(image: str, var_name: str, filename: str):
 
 
 if __name__ == '__main__':
+    filename = Path(__file__).parent.parent / 'resources' / 'exception_face.py'
+
     encode_image(
         image = r'C:\Users\phpjunkie\Python\SkeletalFramework\images\exception_face.png',
         var_name = 'EXCEPTION_FACE',
-        filename = 'exception_face.py'
+        filename = str(filename)
     )
