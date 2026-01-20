@@ -3,14 +3,14 @@ import textwrap
 from pathlib import Path
 
 FILE_TEMPLATE = """
-from base64 import decodebytes
-from io import BytesIO
+import base64
+import io
 
 from PIL import Image
 
 {var_name} = Image.open(
-    fp = BytesIO(
-        initial_bytes = decodebytes(
+    fp = io.BytesIO(
+        initial_bytes = base64.decodebytes(
             {byte_string}
         )
     )
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     filename = Path(__file__).parent.parent / 'resources' / 'exception_face.py'
 
     encode_image(
-        image = r'C:\Users\phpjunkie\Python\SkeletalFramework\images\exception_face.png',
+        image = r'C:\Users\*********\Python\SkeletalFramework\images\exception_face.png',
         var_name = 'EXCEPTION_FACE',
         filename = str(filename)
     )

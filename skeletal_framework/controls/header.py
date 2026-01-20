@@ -1,3 +1,4 @@
+from functools import cached_property
 from ctypes import wintypes
 
 import win32con
@@ -10,12 +11,19 @@ from skeletal_framework.win32_bindings.gdi32 import CreateSolidBrush, CreatePen,
 from skeletal_framework.win32_bindings.user32 import GetClientRect, CreateWindowEx, ShowWindow, UpdateWindow, RegisterClassEx, WNDCLASSEX, LoadCursor, BeginPaint, EndPaint, FillRect, DestroyWindow, GetSysColorBrush, DefWindowProc, DrawText
 from skeletal_framework.win32_bindings.macros import adjust_rgb, get_rgb
 
-_image_panel_instances = {}
+_image_panels = {}
 
 
 class Header:
     _class_registered = False
     _class_name = "TitlePanelClass"
+
+    @cached_property
+    def _width(self) -> int:
+        rect = wintypes.RECT()
+        GetClientRect(self._core_context.main_window, rect)
+
+        return rect.right - rect.left
 
     def __init__(
             self, text: str,
@@ -38,27 +46,10 @@ class Header:
         self._flip_left_image = flip_left_image
         self._flip_right_image = flip_right_image
         self._text = text
-        self._side_image = side_image  # Keep reference to original if needed, or rely on canvas
+        self._side_image = side_image
 
-        # Register the window class if not already registered
         self._register_window_class(h_instance = self._core_context.h_instance)
-
-        rect = wintypes.RECT()
-        GetClientRect(self._core_context.main_window, rect)
-        self._width = rect.right - rect.left
-
-        # Create the window
-        self.hwnd = CreateWindowEx(
-            dwExStyle = 0,
-            lpClassName = self._class_name,
-            lpWindowName = "Title Panel",
-            dwStyle = win32con.WS_CHILD,
-            x = 0, y = 0, nWidth = self._width, nHeight = self._edge_length + 6,
-            hWndParent = self._core_context.main_window,
-            hMenu = None,
-            hInstance = self._core_context.h_instance,
-            lpParam = id(self)
-        )
+        self.hwnd = self._create_window()
 
         self._side_canvas = self._create_fitted_canvas(
             image = side_image,
@@ -77,7 +68,7 @@ class Header:
                 bg_color = self._bg_color
             )
 
-        _image_panel_instances[self.hwnd] = self
+        _image_panels[self.hwnd] = self
 
         UpdateWindow(self.hwnd)
         ShowWindow(self.hwnd, win32con.SW_SHOW)
@@ -96,6 +87,19 @@ class Header:
         canvas.paste(resized_image, (paste_x, paste_y), mask)
 
         return canvas
+
+    def _create_window(self) -> int:
+        return CreateWindowEx(
+            dwExStyle = 0,
+            lpClassName = self._class_name,
+            lpWindowName = "Title Panel",
+            dwStyle = win32con.WS_CHILD,
+            x = 0, y = 0, nWidth = self._width, nHeight = self._edge_length + 6,
+            hWndParent = self._core_context.main_window,
+            hMenu = None,
+            hInstance = self._core_context.h_instance,
+            lpParam = id(self)
+        )
 
     @classmethod
     def _register_window_class(cls, h_instance) -> None:
@@ -120,33 +124,33 @@ class Header:
     def wnd_proc(hwnd, msg, wparam, lparam):
         """Window procedure for handling window messages."""
         # Get the instance associated with this window
-        instance: Header = _image_panel_instances.get(hwnd)
+        header: Header = _image_panels.get(hwnd)
 
         if msg == win32con.WM_PAINT:
-            ps, hdc = BeginPaint(hwnd)
+            if header:
+                ps, hdc = BeginPaint(hwnd)
 
-            if instance:
-                instance._draw_sunken_area(hdc, 0, 0, instance._width, instance._edge_length + 6)
-                instance._draw_left_image(hdc, 3, 3, instance._flip_left_image)
-                instance._draw_right_image(hdc, instance._width - instance._edge_length - 3, 3, instance._flip_right_image)
-                instance._draw_center_image(hdc, instance._edge_length + 3, 3)
-                instance._draw_text(hdc, ps.rcPaint)
+                header._draw_sunken_area(hdc, 0, 0, header._width, header._edge_length + 6)
+                header._draw_left_image(hdc, 3, 3, header._flip_left_image)
+                header._draw_right_image(hdc, header._width - header._edge_length - 3, 3, header._flip_right_image)
+                header._draw_center_image(hdc, header._edge_length + 3, 3)
+                header._draw_text(hdc, ps.rcPaint)
 
-            EndPaint(hwnd, ps)
+                EndPaint(hwnd, ps)
             return 0
 
         elif msg == win32con.WM_DESTROY:
             # Clean up when the window is destroyed
-            if instance:
-                instance._side_canvas.close()
-                instance._side_canvas = None
+            if header:
+                header._side_canvas.close()
+                header._side_canvas = None
 
-                instance._side_image.close()
-                instance._side_image = None
+                header._side_image.close()
+                header._side_image = None
 
                 # Remove from dictionary
-                if hwnd in _image_panel_instances:
-                    del _image_panel_instances[hwnd]
+                if hwnd in _image_panels:
+                    del _image_panels[hwnd]
             return 0
 
         return DefWindowProc(hwnd, msg, wparam, lparam)
@@ -259,8 +263,8 @@ class Header:
         )
 
         font = LOGFONT(
-            height = -24,
-            weight = win32con.FW_NORMAL,
+            height = -75,
+            weight = win32con.FW_BOLD,
             face_name = 'Microsoft Sans Serif',
             charset = win32con.DEFAULT_CHARSET,  # Important for character encoding
             quality = win32con.CLEARTYPE_QUALITY  # Better text rendering

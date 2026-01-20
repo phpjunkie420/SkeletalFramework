@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from skeletal_framework._error_handling import ExceptionHandlerDialog
+from skeletal_framework import ExceptionHandlerDialog
 
 if __name__ == '__main__':
 

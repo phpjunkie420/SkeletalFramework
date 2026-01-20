@@ -2,11 +2,11 @@ import ctypes
 from dataclasses import dataclass
 from typing import Literal
 
-from skeletal_framework.singleton_meta import SingletonMeta
+from skeletal_framework.singleton import Singleton
 
 
 @dataclass(frozen = True)
-class CoreContext(metaclass = SingletonMeta):
+class CoreContext(Singleton):
     h_instance: int | None = None
     main_window: int | None = None
 

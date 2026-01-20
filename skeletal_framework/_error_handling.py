@@ -93,11 +93,11 @@ class ExceptionHandlerDialog:
             text = self._exception_name,
             side_image = EXCEPTION_HAND,
             center_image = EXCEPTION_FACE,
-            flip_right_image = True,
             edge_length = 125,
             # scale_factors = (0.90, 0.70, 1.285, 1.3),
             text_color = wintypes.RGB(red = 255, green = 0, blue = 0),
             # bg_color = wintypes.RGB(60, 60, 60)
+            flip_right_image = True,
         )
 
         # self._edit_box = CustomEditBox(

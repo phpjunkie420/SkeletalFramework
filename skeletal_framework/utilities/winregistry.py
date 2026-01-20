@@ -6,10 +6,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, TYPE_CHECKING
 
-__all__ = [
-    'RegistryKey',
-]
-
 RegValueType = tuple[str, str | int | bytes | list, int]
 
 
@@ -21,60 +17,63 @@ class RegistryValue:
 
     @property
     def raw(self) -> tuple[str, Any, int]:
-        """Returns the legacy tuple format expected by some winreg functions."""
         return self.name, self.value, self.type
 
     @property
     def type_str(self) -> str:
-        """Debug helper to see the type name (e.g., 'REG_SZ')."""
         # Create a reverse lookup map for winreg constants
         types = {v: k for k, v in vars(winreg).items() if k.startswith('REG_')}
         return types.get(self.type, "UNKNOWN")
 
 
-class RegistryMeta(type):
+class FactoryHiveMeta(type):
+
+    @property
+    def HKEY_CLASSES_ROOT(cls) -> RegistryKey:
+        return cls(winreg.HKEY_CLASSES_ROOT, '')
 
     @property
     def HKEY_CURRENT_USER(cls) -> RegistryKey:
-        """Factory: Returns a RegistryKey rooted in HKEY_CURRENT_USER."""
         return cls(winreg.HKEY_CURRENT_USER, '')
 
     @property
     def HKEY_LOCAL_MACHINE(cls) -> RegistryKey:
-        """Factory: Returns a RegistryKey rooted in HKEY_LOCAL_MACHINE."""
         return cls(winreg.HKEY_LOCAL_MACHINE, '')
 
     @property
-    def HKEY_CLASSES_ROOT(cls) -> RegistryKey:
-        """Factory: Returns a RegistryKey rooted in HKEY_CLASSES_ROOT."""
-        return cls(winreg.HKEY_CLASSES_ROOT, '')
-
-    @property
     def HKEY_USERS(cls) -> RegistryKey:
-        """Factory: Returns a RegistryKey rooted in HKEY_USERS."""
         return cls(winreg.HKEY_USERS, '')
 
+    @property
+    def HKEY_CURRENT_CONFIG(cls) -> RegistryKey:
+        return cls(winreg.HKEY_CURRENT_CONFIG, '')
 
-class RegistryKey(metaclass = RegistryMeta):
+
+class FactoryHives(metaclass = FactoryHiveMeta):
+    """
+    Acts as a static analysis bridge between the metaclass and the implementation.
+
+    This intermediate class exists primarily to satisfy IDEs (like PyCharm). It
+    exposes the FactoryHiveMeta properties as actual 'RegistryKey' attributes,
+    ensuring autocomplete shows the instance methods instead of the raw
+    property class attributes.
+    """
+
     if TYPE_CHECKING:
-        # These are "Type Stubs".
-        # This block is for Static Analysis (PyCharm/VS Code) only.
-        # Python ignores them at runtime (because TYPE_CHECKING is False).
-        # It resolves type mismatches and suppresses false-positive IDE warnings.
-        # PyCharm/VS Code reads them and overrides their inference.
         HKEY_CURRENT_USER: RegistryKey
         HKEY_LOCAL_MACHINE: RegistryKey
         HKEY_CLASSES_ROOT: RegistryKey
         HKEY_USERS: RegistryKey
+        HKEY_CURRENT_CONFIG: RegistryKey
+
+
+class RegistryKey(FactoryHives):
 
     class _Scan(Enum):
-        """Defines the configuration for enumerating keys vs. values."""
         Keys = (0, winreg.EnumKey)
         Values = (1, winreg.EnumValue)
 
-    """A general-purpose class for interacting with a Windows Registry key."""
     def __init__(self, hkey: int, path: str):
-        """Initializes the RegistryKey with a hive and a path."""
         cleaned_path = path.replace('/', '\\')
         cleaned_path = cleaned_path.strip('\\')
 
@@ -88,11 +87,9 @@ class RegistryKey(metaclass = RegistryMeta):
         except OSError:
             return False
 
-    # 2. Modern Path Protocol (Allows usage in os.path.*)
     def __fspath__(self):
         return self._path
 
-    # 3. Hashing (Allows use in sets/dicts)
     def __hash__(self):
         return hash((self._hkey, self._path))
 
@@ -101,11 +98,9 @@ class RegistryKey(metaclass = RegistryMeta):
             return self._hkey == other._hkey and self._path == other._path
         return self._path == other
 
-    # 4. Length
     def __len__(self):
         return len(self._path)
 
-    # 5. String Representation
     def __str__(self):
         return self._path
 
@@ -164,7 +159,7 @@ class RegistryKey(metaclass = RegistryMeta):
                 else:
                     raise TypeError("Cannot infer registry type. Please specify 'value_type'.")
 
-        # Handle formatting (like your _with_env_vars) logic here
+        # Handle formatting (like _with_env_vars)
         if reg_type == winreg.REG_EXPAND_SZ and isinstance(data, str):
             data = self._with_env_vars(data)
 
@@ -252,6 +247,8 @@ class RegistryKey(metaclass = RegistryMeta):
 
         return path
 
+
+__all__ = ['RegistryKey', 'RegistryValue']
 
 # --- EXAMPLE USAGE ---
 if __name__ == '__main__':
