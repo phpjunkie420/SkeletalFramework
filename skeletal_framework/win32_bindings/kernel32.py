@@ -4,6 +4,7 @@ from ctypes import wintypes
 from skeletal_framework.win32_bindings.errcheck import call_with_last_error_check
 
 __all__ = [
+    'GetConsoleWindow',
     'GetModuleHandle'
 ]
 
@@ -26,6 +27,10 @@ GetModuleHandleW = ctypes.WINFUNCTYPE(
         (IN, "lpModuleName"),
     )
 )
+
+# HWND WINAPI GetConsoleWindow(void);
+GetConsoleWindow = kernel32.GetConsoleWindow
+GetConsoleWindow.restype = wintypes.HWND
 
 
 def GetModuleHandle(lpModuleName: str | None) -> int:
