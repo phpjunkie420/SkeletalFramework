@@ -21,7 +21,6 @@ class RegistryValue:
 
     @property
     def type_str(self) -> str:
-        # Create a reverse lookup map for winreg constants
         types = {v: k for k, v in vars(winreg).items() if k.startswith('REG_')}
         return types.get(self.type, "UNKNOWN")
 
@@ -138,7 +137,6 @@ class RegistryKey(FactoryHives):
         Usage C (Infer):    set_value("Key", 1) # Guesses REG_DWORD
         """
 
-        # Logic to normalize inputs
         if isinstance(name_or_obj, RegistryValue):
             name = name_or_obj.name
             data = name_or_obj.value
@@ -147,19 +145,16 @@ class RegistryKey(FactoryHives):
             name = name_or_obj
             data = value_data
 
-            # If type is provided explicitly, use it. Otherwise, guess.
             if value_type is not None:
                 reg_type = value_type
             else:
-                # Your original guessing logic goes here
                 if isinstance(data, int):
                     reg_type = winreg.REG_DWORD
                 elif isinstance(data, str):
-                    reg_type = winreg.REG_SZ  # Default to SZ, not EXPAND_SZ unless requested
+                    reg_type = winreg.REG_SZ
                 else:
                     raise TypeError("Cannot infer registry type. Please specify 'value_type'.")
 
-        # Handle formatting (like _with_env_vars)
         if reg_type == winreg.REG_EXPAND_SZ and isinstance(data, str):
             data = self._with_env_vars(data)
 
@@ -201,15 +196,11 @@ class RegistryKey(FactoryHives):
     def _enumerate(self, mode: _Scan) -> Generator[str | RegValueType, None, None]:
         """Internal helper to yield items based on the given mode."""
         with winreg.OpenKey(self._hkey, self._path) as key:
-            # Unpack the tuple from the Enum
             index, function = mode.value
-
-            # Use the index for QueryInfoKey
             count = winreg.QueryInfoKey(key)[index]
 
             for i in range(count):
                 try:
-                    # Use the function (EnumKey or EnumValue) stored in the Enum
                     yield function(key, i)
                 except FileNotFoundError:
                     continue
